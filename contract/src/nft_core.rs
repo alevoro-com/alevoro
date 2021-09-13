@@ -83,16 +83,6 @@ trait NonFungibleTokenResolver {
     ) -> bool;
 }
 
-trait NonFungibleTokenResolver {
-    fn nft_resolve_transfer(
-        &mut self,
-        owner_id: AccountId,
-        receiver_id: AccountId,
-        approved_account_ids: HashMap<AccountId, U64>,
-        token_id: TokenId,
-    ) -> bool;
-}
-
 #[near_bindgen]
 impl NonFungibleTokenCore for Contract {
 
