@@ -123,6 +123,8 @@ impl Contract {
     ) -> Token {
         let token = self.tokens_by_id.get(token_id).expect("Token not found");
 
+        env::log(format!("SENDER: {}, TOKEN_OWNER: {}", sender_id, &token.owner_id).as_bytes());
+
         if sender_id != &token.owner_id && !token.approved_account_ids.contains_key(sender_id) {
             env::panic(b"Unauthorized");
         }

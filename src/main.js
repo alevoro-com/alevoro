@@ -30,9 +30,9 @@ async function connect(nearConfig) {
   // Initializing our contract APIs by contract name and configuration.
   window.contract = await new nearAPI.Contract(window.walletConnection.account(), nearConfig.contractName, {
     // View methods are read-only – they don't modify the state, but usually return some value
-    viewMethods: ['get_num', 'nft_tokens_for_owner'],
+    viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens'],
     // Change methods can modify the state, but you don't receive the returned value when called
-    changeMethods: ['increment', 'nft_mint'],
+    changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back'],
     // Sender is the account ID to initialize transactions.
     // getAccountId() will return empty string if user is still unauthorized
     sender: window.walletConnection.getAccountId()
@@ -51,10 +51,18 @@ function updateUI() {
       console.log(`get num ${count}`);
       document.querySelector('.score').innerHTML = count;
     });
+    document.getElementsByClassName("gallery")[0].innerHTML = "";
     contract.nft_tokens_for_owner({
       account_id: window.walletConnection.getAccountId(),
       from_index: '0',
       limit: '50'
+    }).then(res => {
+      const nfts = getNFTsInfo(res);
+      showGallery(nfts);
+    });
+
+    contract.get_locked_tokens({
+      account_id: window.walletConnection.getAccountId()
     }).then(res => {
       const nfts = getNFTsInfo(res);
       showGallery(nfts);
@@ -75,7 +83,6 @@ function getNFTsInfo(res){
 }
 
 function showGallery(nfts){
-  document.getElementsByClassName("gallery")[0].innerHTML = "";
   for (let nft of nfts) {
     document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nft);
   }
@@ -105,6 +112,18 @@ document.querySelector('.open-mint').addEventListener("click", function() {
 
 document.querySelector('.increase').addEventListener("click", function() {
   contract.increment({account_id: window.walletConnection.getAccountId()}).then(updateUI);
+});
+
+document.querySelector('.transfer-nft').addEventListener("click", function() {
+  const deposit = 1;
+  const params = { creditor_id: "biba7.testnet", token_id: "token-1631554286914", lend_money: 2, apr: 228, lend_duration: 1488}
+  contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
+});
+
+document.querySelector('.transfer-back').addEventListener("click", function() {
+  // const deposit = 1;
+  // const params = { creditor_id: "biba7.testnet", token_id: "token-1631554286914", lend_money: 2, apr: 228, lend_duration: 1488}
+  // contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
 });
 
 document.querySelector('.close').addEventListener("click", function() {

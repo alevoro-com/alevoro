@@ -22,6 +22,7 @@ impl Contract {
 
         let initial_storage_usage = env::storage_usage();
         let mut owner_id = env::predecessor_account_id();
+        env::log(format!("TOKEN OWNER ID OLD: {}", owner_id).as_bytes());
         if let Some(receiver_id) = receiver_id {
             owner_id = receiver_id.into();
         }
@@ -35,7 +36,7 @@ impl Contract {
                 royalty.insert(account, amount);
             }
         }
-
+        env::log(format!("TOKEN OWNER ID: {}", owner_id).as_bytes());
         let token = Token {
             owner_id,
             approved_account_ids: Default::default(),

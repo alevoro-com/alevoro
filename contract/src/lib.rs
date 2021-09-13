@@ -15,6 +15,8 @@ pub use crate::mint::*;
 pub use crate::nft_core::*;
 pub use crate::token::*;
 pub use crate::enumerable::*;
+use std::convert::TryFrom;
+use crate::locked_token::LockedToken;
 
 mod internal;
 mod metadata;
@@ -22,6 +24,7 @@ mod mint;
 mod nft_core;
 mod token;
 mod enumerable;
+mod locked_token;
 
 near_sdk::setup_alloc!();
 
@@ -42,6 +45,8 @@ pub struct Contract {
     pub metadata: LazyOption<NFTMetadata>,
 
     pub users_val: HashMap<AccountId, i8>,
+
+    pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
 }
 
 /// Helper structure to for keys of the persistent collections.
@@ -55,6 +60,8 @@ pub enum StorageKey {
     TokensPerType,
     TokensPerTypeInner { token_type_hash: CryptoHash },
     TokenTypesLocked,
+    NFTsPerOwner,
+    NFTsPerOwnerInner { account_id_hash: CryptoHash },
 }
 
 #[near_bindgen]
@@ -74,6 +81,7 @@ impl Contract {
                 Some(&metadata),
             ),
             users_val: HashMap::new(),
+            tokens_stored_per_owner: LookupMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
         };
 
         this.measure_min_token_storage_cost();
@@ -83,10 +91,30 @@ impl Contract {
 
     pub fn get_num(&self, account_id: AccountId) -> i8 {
         let val = self.users_val.get(&account_id).cloned();
-        if val.is_none(){
+        if val.is_none() {
             return 0;
         }
         return val.unwrap();
+    }
+
+    pub fn get_locked_tokens(
+        &self,
+        account_id: AccountId,
+    ) -> Vec<JsonToken> {
+        let mut tmp = vec![];
+        let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
+        let tokens = if let Some(tokens_owner) = tokens_owner {
+            tokens_owner
+        } else {
+            return vec![];
+        };
+        let keys = tokens.as_vector();
+        let start = 0;
+        let end = keys.len();
+        for i in start..end {
+            tmp.push(self.nft_token(keys.get(i).unwrap().token_id).unwrap());
+        }
+        tmp
     }
 
 
@@ -100,6 +128,71 @@ impl Contract {
         self.users_val.insert(account_id, new_val);
         let log_message = format!("Increased number to {}", new_val);
         env::log(log_message.as_bytes());
+    }
+
+    #[payable]
+    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, lend_money: u128, apr: u64, lend_duration: u64) {
+        let account_id = &env::predecessor_account_id();
+        let token_id_cloned = token_id.clone();
+
+        self.nft_transfer(ValidAccountId::try_from("contracthuy.olegggatttor.testnet".to_string()).unwrap(), token_id, None, None);
+
+        let mut locked_tokens = self.tokens_stored_per_owner.get(account_id).unwrap_or_else(|| {
+            UnorderedSet::new(
+                StorageKey::NFTsPerOwnerInner {
+                    account_id_hash: hash_account_id(&account_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+        locked_tokens.insert(&LockedToken {
+            token_id: token_id_cloned,
+            owner_id: account_id.clone(),
+            duration: lend_duration,
+            lend_money: lend_money,
+            apr: apr,
+            creditor: None,
+            start_time: None,
+            is_confirmed: false,
+        });
+        self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
+    }
+
+    #[payable]
+    pub fn transfer_nft_back(&mut self, token_id: TokenId) {
+        let account_id = &env::predecessor_account_id();
+        // let token_id_cloned = token_id.clone();
+
+        let mut locked_tokens = self.tokens_stored_per_owner
+            .get(account_id).unwrap_or_else(|| {
+            UnorderedSet::new(
+                StorageKey::NFTsPerOwnerInner {
+                    account_id_hash: hash_account_id(&account_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+
+        let token_exists_and_valid = locked_tokens
+            .iter()
+            .find(|x| x.token_id == token_id);
+
+        if let Some(token) = token_exists_and_valid {
+            assert!(token.owner_id == account_id);
+            assert!(!token.is_confirmed);
+            assert!(locked_tokens.remove(&token));
+
+            self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
+
+            self.nft_transfer(ValidAccountId::try_from(account_id).unwrap(), token_id, None, None);
+
+        } else {
+            env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
+        }
+
+        // let is_removed = locked_tokens.remove()
     }
 
     fn measure_min_token_storage_cost(&mut self) {
@@ -129,10 +222,10 @@ impl Contract {
     pub fn migrate() -> Self {
         #[derive(BorshDeserialize)]
         struct Old {
-            users_val: HashMap<AccountId, i8>
+            users_val: HashMap<AccountId, i8>,
         }
         let state_1: Old = env::state_read().expect("Error");
-        let metadata = NFTMetadata{
+        let metadata = NFTMetadata {
             spec: "nft-1.0.0".to_string(),              // required, essentially a version like "nft-1.0.0"
             name: "Mosaics".to_string(),              // required, ex. "Mosaics"
             symbol: "MOSIAC".to_string(),
@@ -153,6 +246,7 @@ impl Contract {
             metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(),
                                       Some(&metadata)),
             users_val: state_1.users_val,
+            tokens_stored_per_owner: LookupMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
         }
     }
 }
