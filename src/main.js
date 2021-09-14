@@ -52,32 +52,33 @@ function updateUI() {
       document.querySelector('.score').innerHTML = count;
     });
     document.getElementsByClassName("gallery")[0].innerHTML = "";
+    
     contract.nft_tokens_for_owner({
       account_id: window.walletConnection.getAccountId(),
       from_index: '0',
       limit: '50'
     }).then(res => {
-      const nfts = getNFTsInfo(res);
+      const nfts = getNFTsInfo(res, is_locked=false);
       showGallery(nfts);
     });
 
     contract.get_locked_tokens({
       account_id: window.walletConnection.getAccountId()
     }).then(res => {
-      const nfts = getNFTsInfo(res);
+      const nfts = getNFTsInfo(res, is_locked=true);
       showGallery(nfts);
     });
 
   }
 }
 
-function getNFTsInfo(res){
+function getNFTsInfo(res, is_locked){
   let nfts = [];
   for (let el of res) {
     console.log(el['token_id']);
     const image_url = el['metadata']['media'];
     const title = el['metadata']['title'] || "No title";
-    nfts.push([title, el['owner_id'], image_url])
+    nfts.push([title, el['owner_id'], image_url, is_locked])
   }
   return nfts
 }
@@ -89,10 +90,13 @@ function showGallery(nfts){
 }
 
 function showNFT(nft){
+  const bottom_class = nft[3] ? "locked_nft" : "available_nft";
   return "<div class=\"nft\">\n" +
           "   <div class=\"nft__image\"><img class=\"container_image\" src=\""+nft[2]+"\" alt=\""+nft[0]+"\"></div>\n" +
-          "   <h2 class=\"nft__title\">"+nft[0]+"</h2>\n" +
-          "   <p class=\"nft__owner\">"+nft[1]+"</p>\n" +
+          "     <div class=\""+bottom_class+"\">" +
+          "       <h2 class=\"nft__title\">"+nft[0]+"</h2>\n" +
+          "       <p class=\"nft__owner\">"+nft[1]+"</p>\n" +
+          "   </div>" +
           "</div>"
 }
 

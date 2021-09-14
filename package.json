@@ -1,12 +1,12 @@
 {
   "name": "alevoro",
-  "description": "Counter Smart Contract\n\nThis project contains implementation of counter backed by blockchain, written in Rust.",
+  "description": "p2p marketplace",
   "version": "0.0.1",
   "license": "(MIT AND Apache-2.0)",
   "scripts": {
     "build": "cd contract && cargo build --target wasm32-unknown-unknown --release",
     "postbuild": "cp contract/target/wasm32-unknown-unknown/release/rust_counter_tutorial.wasm ./out/main.wasm",
-    "deploy:contract": "near deploy",
+    "deploy:contract": "yarn export_contract && near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json",
     "deploy:pages": "gh-pages -d src",
     "deploy": "yarn build && yarn deploy:contract",
     "deploy:dev": "yarn build && near dev-deploy",
@@ -17,8 +17,9 @@
     "test:cargo": "cd contract && cargo test -- --nocapture",
     "test": "yarn build && yarn test:cargo && jest",
 
-    "bd": "yarn build && near deploy contract.alevoro.testnet ./out/main.wasm",
-    "migrate": "near call contract.alevoro.testnet migrate '{}' --accountId contract.alevoro.testnet"
+    "export_contract": "export CON_NAME=contract.alevoro.testnet",
+    "bd": "yarn export_contract && yarn build && near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json ./out/main.wasm",
+    "migrate": "yarn export_contract && near call $CON_NAME migrate '{}' --accountId $CON_NAME"
   },
   "devDependencies": {
     "env-cmd": "^10.1.0",

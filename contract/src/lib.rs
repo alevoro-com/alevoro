@@ -180,13 +180,13 @@ impl Contract {
             .find(|x| x.token_id == token_id);
 
         if let Some(token) = token_exists_and_valid {
-            assert!(token.owner_id == account_id);
+            //assert!(token.owner_id == account_id);
             assert!(!token.is_confirmed);
             assert!(locked_tokens.remove(&token));
 
             self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
 
-            self.nft_transfer(ValidAccountId::try_from(account_id).unwrap(), token_id, None, None);
+            //self.nft_transfer(ValidAccountId::try_from(account_id).unwrap(), token_id, None, None);
 
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
