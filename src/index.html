@@ -2,22 +2,41 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
   <link rel="stylesheet" href="./main.css">
 </head>
-<body >
-  <div id="myModal" class="modal">
-
+<body>
+  <div id="mintModal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <span class="close">&times;</span>
+        <span class="close closeMint">&times;</span>
         <h2>Mint NFT</h2>
       </div>
-        <p>Title: <input class="mint-title" name="title"></p>
-        <p>URL: <input class="mint-url" name="url"></p>
+        <p>Title: <input class="modal-input mint-title" name="title"></p>
+        <p>URL: <input class="modal-input mint-url" name="url"></p>
         <button class="btn mint" >Mint</button>
     </div>
-
   </div>
+  <div id="nftModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <span class="close closeNFT">&times;</span>
+        <h2 class="title-modal-nft"></h2>
+      </div>
+      <div id="modal-borrow-block">
+        <p>Customize the parameters and put your NFT asset up as collateral for a loan</p>
+        <p>Amount(NEAR): <input class="modal-input input-amount" type="number" value="100" name="amount" min="1" max="100000"></p>
+        <p>Days: <input class="modal-input input-days" type="number" name="days" value="10" min="1" max="365"></p>
+        <p>APR: <input class="modal-input input-apr" type="number"name="apr" value="30" min="1" max="10000"></p>
+        <button class="btn transfer-nft">Place offer</button>
+      </div>
+      <div id="modal-back-block">
+        <button class="btn transfer-nft-back">Return NFT</button>
+      </div>
+
+    </div>
+  </div>
+
   <div class="container">
     <h1>alevoro.</h1>
 
@@ -25,8 +44,6 @@
       <p class="score">-</p>
       <button class="btn login" >Sign In</button>
       <button class="btn increase" >Increase</button>
-      <button class="btn transfer-nft" >Transfer NFT</button>
-      <button class="btn transfer-back" >Transfer NFT Back</button>
       <button class="btn open-mint" >Mint</button>
     </div>
   </div>

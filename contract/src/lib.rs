@@ -131,7 +131,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, lend_money: u128, apr: u64, lend_duration: u64) {
+    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: u128, apr: u64, borrow_duration: u64) {
         let account_id = &env::predecessor_account_id();
         let token_id_cloned = token_id.clone();
 
@@ -149,8 +149,8 @@ impl Contract {
         locked_tokens.insert(&LockedToken {
             token_id: token_id_cloned,
             owner_id: account_id.clone(),
-            duration: lend_duration,
-            lend_money: lend_money,
+            duration: borrow_duration,
+            borrowed_money: borrowed_money,
             apr: apr,
             creditor: None,
             start_time: None,
