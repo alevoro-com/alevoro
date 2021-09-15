@@ -98,7 +98,7 @@ function getNFTsInfo(res, isLocked){
 }
 
 function showGallery(nfts){
-  for (let i=0; i< nfts.length; i++) {
+  for (let i = 0; i < nfts.length; i++) {
     document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
   }
   if (nfts.length > 0){
@@ -112,19 +112,19 @@ function showModalNft(id){
   modalNFT.style.display = "block";
   const nft = all_nfts[id];
   const deposit = 1;
-  const lockedBlock = document.getElementById('modal-back-block')
-  const borrowBlock = document.getElementById('modal-borrow-block')
+  const lockedBlock = document.getElementById('modal-back-block');
+  const borrowBlock = document.getElementById('modal-borrow-block');
   if (nft.isLocked) {
-    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Return"
-    lockedBlock.style.display = 'block'
-    borrowBlock.style.display = 'none'
+    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Return";
+    lockedBlock.style.display = 'block';
+    borrowBlock.style.display = 'none';
     $('.transfer-nft-back').click(function(){
       contract.transfer_nft_back({ token_id: id}, GAS, deposit).then(updateUI);
     });
   } else {
-    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Borrow"
-    lockedBlock.style.display = 'none'
-    borrowBlock.style.display = 'block'
+    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Borrow";
+    lockedBlock.style.display = 'none';
+    borrowBlock.style.display = 'block';
     $('.transfer-nft').click(function(){
       const amount = Number.parseInt(document.getElementsByClassName("input-amount")[0].value);
       const days = Number.parseInt(document.getElementsByClassName("input-days")[0].value);
