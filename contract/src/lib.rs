@@ -16,7 +16,7 @@ pub use crate::nft_core::*;
 pub use crate::token::*;
 pub use crate::enumerable::*;
 use std::convert::TryFrom;
-use crate::locked_token::LockedToken;
+use crate::locked_token::*;
 
 mod internal;
 mod metadata;
@@ -46,7 +46,7 @@ pub struct Contract {
 
     pub users_val: HashMap<AccountId, i8>,
 
-    pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
+    pub tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
 
     pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>,
 }
@@ -84,7 +84,7 @@ impl Contract {
                 Some(&metadata),
             ),
             users_val: HashMap::new(),
-            tokens_stored_per_owner: LookupMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
+            tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
         };
 
@@ -101,10 +101,42 @@ impl Contract {
         return val.unwrap();
     }
 
+    pub fn get_all_locked_tokens(
+        &self
+    ) -> Vec<JsonLockedToken> {
+        let mut all_locked_tokens = vec![];
+        for account_id in self.tokens_stored_per_owner.keys_as_vector().iter() {
+            let locked_tokens = self.get_locked_instances(account_id, false);
+            for locked_token in locked_tokens.iter() {
+                let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
+                all_locked_tokens.push(JsonLockedToken {
+                    json_token: json_token,
+                    locked_token: locked_token.clone()
+                })
+            }
+        }
+        all_locked_tokens
+    }
+
     pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
+        need_all: bool
     ) -> Vec<JsonToken> {
+        let mut locked_tokens_jsons = vec![];
+        let locked_tokens = self.get_locked_instances(account_id, need_all);
+        for locked_token in locked_tokens.iter() {
+            locked_tokens_jsons.push(self.nft_token(locked_token.token_id.clone()).unwrap());
+        }
+        locked_tokens_jsons
+    }
+
+    #[private]
+    fn get_locked_instances(
+        &self,
+        account_id: AccountId,
+        need_all: bool
+     )-> Vec<LockedToken> {
         let mut tmp = vec![];
         let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
         let tokens = if let Some(tokens_owner) = tokens_owner {
@@ -116,7 +148,10 @@ impl Contract {
         let start = 0;
         let end = keys.len();
         for i in start..end {
-            tmp.push(self.nft_token(keys.get(i).unwrap().token_id).unwrap());
+            let cur_token: LockedToken = keys.get(i).unwrap();
+            if need_all || !cur_token.is_confirmed {
+                tmp.push(cur_token);
+            }
         }
         tmp
     }
@@ -220,7 +255,7 @@ impl Contract {
 
         env::log("GET LOCKED TOKENS".as_bytes());
 
-        let mut token_exists_and_valid = contract_locked_tokens
+        let token_exists_and_valid = contract_locked_tokens
             .iter()
             .find(|x| x.token_id == token_id);
 
@@ -278,45 +313,38 @@ impl Contract {
     #[init(ignore_state)]
     #[private]
     pub fn migrate() -> Self {
-        #[derive(BorshDeserialize)]
-        struct Old {
-            pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
+        // #[derive(BorshDeserialize)]
+        // struct Old {
+        //     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
 
-            pub tokens_by_id: LookupMap<TokenId, Token>,
+        //     pub tokens_by_id: LookupMap<TokenId, Token>,
 
-            pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
+        //     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
 
-            pub owner_id: AccountId,
+        //     pub owner_id: AccountId,
 
-            /// The storage size in bytes for one account.
-            pub extra_storage_in_bytes_per_token: StorageUsage,
+        //     /// The storage size in bytes for one account.
+        //     pub extra_storage_in_bytes_per_token: StorageUsage,
 
-            pub metadata: LazyOption<NFTMetadata>,
+        //     pub metadata: LazyOption<NFTMetadata>,
 
-            pub users_val: HashMap<AccountId, i8>,
+        //     pub users_val: HashMap<AccountId, i8>,
 
-            pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
-        }
-        let state_1: Old = env::state_read().expect("Error");
-//        let metadata = NFTMetadata {
-//            spec: "nft-1.0.0".to_string(),              // required, essentially a version like "nft-1.0.0"
-//            name: "Mosaics".to_string(),              // required, ex. "Mosaics"
-//            symbol: "MOSIAC".to_string(),
-//            icon: None,      // Data URL
-//            base_uri: None, // Centralized gateway known to have reliable access to decentralized storage assets referenced by `reference` or `media` URLs
-//            reference: None, // URL to a JSON file with more info
-//            reference_hash: None, // Base64-encoded sha256 hash of JSON from reference field. Required if `reference` is included.
-//        };
+        //     pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
+
+        //     pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>
+        // }
+        // let state_1: Old = env::state_read().expect("Error");
 
         Self {
-            tokens_per_owner: state_1.tokens_per_owner,
-            tokens_by_id: state_1.tokens_by_id,
-            token_metadata_by_id: state_1.token_metadata_by_id,
-            owner_id: state_1.owner_id,
-            extra_storage_in_bytes_per_token: state_1.extra_storage_in_bytes_per_token,
-            metadata: state_1.metadata,
-            users_val: state_1.users_val,
-            tokens_stored_per_owner: state_1.tokens_stored_per_owner,
+            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
+            token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
+            owner_id: "contract.alevoro.testnet".to_string(),
+            extra_storage_in_bytes_per_token: 0,
+            metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
+            users_val: HashMap::new(),
+            tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap())
         }
     }

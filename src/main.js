@@ -76,7 +76,8 @@ function updateUI() {
         });
 
         contract.get_locked_tokens({
-            account_id: window.walletConnection.getAccountId()
+            account_id: window.walletConnection.getAccountId(),
+            need_all: true
         }).then(res => {
             const nfts = getNFTsInfo(res, true);
             showGallery(nfts);
@@ -115,20 +116,20 @@ function showModalNft(id){
   const lockedBlock = document.getElementById('modal-back-block');
   const borrowBlock = document.getElementById('modal-borrow-block');
   if (nft.isLocked) {
-    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Return";
+    document.querySelector('.title-modal-nft').innerHTML = "Return";
     lockedBlock.style.display = 'block';
     borrowBlock.style.display = 'none';
     $('.transfer-nft-back').click(function(){
       contract.transfer_nft_back({ token_id: id}, GAS, deposit).then(updateUI);
     });
   } else {
-    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Borrow";
+    document.querySelector('.title-modal-nft').innerHTML = "Borrow";
     lockedBlock.style.display = 'none';
     borrowBlock.style.display = 'block';
     $('.transfer-nft').click(function(){
-      const amount = Number.parseInt(document.getElementsByClassName("input-amount")[0].value);
-      const days = Number.parseInt(document.getElementsByClassName("input-days")[0].value);
-      const apr = Number.parseInt(document.getElementsByClassName("input-apr")[0].value);
+      const amount = Number.parseInt(document.querySelector(".input-amount").value);
+      const days = Number.parseInt(document.querySelector(".input-days").value);
+      const apr = Number.parseInt(document.querySelector(".input-apr").value);
     
       if (amount && days && apr) {
         const params = { token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
