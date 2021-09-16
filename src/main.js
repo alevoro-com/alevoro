@@ -97,46 +97,46 @@ function getNFTsInfo(res, isLocked) {
     return nfts
 }
 
-function showGallery(nfts) {
-    for (let i = 0; i < nfts.length; i++) {
-        document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
-    }
-    if (nfts.length > 0) {
-        $('.container_image').click(function () {
-            showModalNft(this.id)
-        });
-    }
+function showGallery(nfts){
+  for (let i = 0; i < nfts.length; i++) {
+    document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
+  }
+  if (nfts.length > 0){
+    $('.container_image').click(function(){
+      showModalNft(this.id)
+    });
+  }
 }
 
-function showModalNft(id) {
-    modalNFT.style.display = "block";
-    const nft = all_nfts[id];
-    const deposit = 1;
-    const lockedBlock = document.getElementById('modal-back-block')
-    const borrowBlock = document.getElementById('modal-borrow-block')
-    if (nft.isLocked) {
-        document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Return"
-        lockedBlock.style.display = 'block'
-        borrowBlock.style.display = 'none'
-        $('.transfer-nft-back').click(function () {
-            contract.transfer_nft_back({token_id: id}, GAS, deposit).then(updateUI);
-        });
-    } else {
-        document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Borrow"
-        lockedBlock.style.display = 'none'
-        borrowBlock.style.display = 'block'
-        $('.transfer-nft').click(function () {
-            const amount = Number.parseInt(document.getElementsByClassName("input-amount")[0].value);
-            const days = Number.parseInt(document.getElementsByClassName("input-days")[0].value);
-            const apr = Number.parseInt(document.getElementsByClassName("input-apr")[0].value);
-
-            if (amount && days && apr) {
-                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
-                contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
-                modalNFT.style.display = "none";
-            }
-        });
-    }
+function showModalNft(id){
+  modalNFT.style.display = "block";
+  const nft = all_nfts[id];
+  const deposit = 1;
+  const lockedBlock = document.getElementById('modal-back-block');
+  const borrowBlock = document.getElementById('modal-borrow-block');
+  if (nft.isLocked) {
+    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Return";
+    lockedBlock.style.display = 'block';
+    borrowBlock.style.display = 'none';
+    $('.transfer-nft-back').click(function(){
+      contract.transfer_nft_back({ token_id: id}, GAS, deposit).then(updateUI);
+    });
+  } else {
+    document.getElementsByClassName('title-modal-nft')[0].innerHTML = "Borrow";
+    lockedBlock.style.display = 'none';
+    borrowBlock.style.display = 'block';
+    $('.transfer-nft').click(function(){
+      const amount = Number.parseInt(document.getElementsByClassName("input-amount")[0].value);
+      const days = Number.parseInt(document.getElementsByClassName("input-days")[0].value);
+      const apr = Number.parseInt(document.getElementsByClassName("input-apr")[0].value);
+    
+      if (amount && days && apr) {
+        const params = { token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
+        contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
+        modalNFT.style.display = "none";
+      }
+    });
+  }
 }
 
 
