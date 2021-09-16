@@ -1,6 +1,7 @@
 use crate::*;
 
-#[derive(BorshDeserialize, BorshSerialize)]
+#[derive(BorshDeserialize, BorshSerialize, Serialize, Deserialize, Clone)]
+#[serde(crate = "near_sdk::serde")]
 pub struct LockedToken {
     pub token_id: TokenId,
     pub owner_id: AccountId,
