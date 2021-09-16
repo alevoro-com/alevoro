@@ -47,6 +47,8 @@ pub struct Contract {
     pub users_val: HashMap<AccountId, i8>,
 
     pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
+
+    pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>,
 }
 
 /// Helper structure to for keys of the persistent collections.
@@ -62,6 +64,7 @@ pub enum StorageKey {
     TokenTypesLocked,
     NFTsPerOwner,
     NFTsPerOwnerInner { account_id_hash: CryptoHash },
+    LockerByTokenId
 }
 
 #[near_bindgen]
@@ -82,6 +85,7 @@ impl Contract {
             ),
             users_val: HashMap::new(),
             tokens_stored_per_owner: LookupMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
+            nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
         };
 
         this.measure_min_token_storage_cost();
@@ -147,7 +151,7 @@ impl Contract {
             )
         });
         locked_tokens.insert(&LockedToken {
-            token_id: token_id_cloned,
+            token_id: token_id_cloned.clone(),
             owner_id: account_id.clone(),
             duration: borrow_duration,
             borrowed_money: borrowed_money,
@@ -157,6 +161,8 @@ impl Contract {
             is_confirmed: false,
         });
         self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
+        self.nft_locker_by_token_id.insert(&token_id_cloned, account_id);
+        env::log(format!("ADDED TOKEN ID: {}, SELLER: {}", token_id_cloned, self.nft_locker_by_token_id.get(&token_id_cloned).unwrap()).as_bytes())
     }
 
     #[payable]
@@ -185,14 +191,66 @@ impl Contract {
             assert!(locked_tokens.remove(&token));
 
             self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
+            self.nft_locker_by_token_id.remove(&token_id);
             //self.internal_add_token_to_owner(account_id, &token_id);
             self.internal_transfer(&"contract.alevoro.testnet".to_string(), account_id, &token_id, None, None);
-
-
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
         }
+    }
 
+    #[payable]
+    pub fn transfer_deposit_for_nft(&mut self, token_id: TokenId) {
+        let lender_id = &env::predecessor_account_id();
+        let seller_id = self.nft_locker_by_token_id.get(&token_id).unwrap();
+        assert_ne!(lender_id.to_string(), seller_id.to_string());
+        env::log(format!("Seller: {}", seller_id).as_bytes());
+        env::log(format!("TokeID: {}", token_id).as_bytes());
+
+        let mut contract_locked_tokens = self.tokens_stored_per_owner
+            .get(&seller_id).unwrap_or_else(|| {
+            UnorderedSet::new(
+                StorageKey::NFTsPerOwnerInner {
+                    account_id_hash: hash_account_id(&lender_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+
+        env::log("GET LOCKED TOKENS".as_bytes());
+
+        let mut token_exists_and_valid = contract_locked_tokens
+            .iter()
+            .find(|x| x.token_id == token_id);
+
+        env::log("CHECKED VALIDITY".as_bytes());
+
+        for x in contract_locked_tokens.iter() {
+            env::log(format!("Token_id: {}", x.token_id).as_bytes());
+        }
+
+        if let Some(token) = token_exists_and_valid {
+            let deposit = env::attached_deposit();
+            env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
+
+            if !token.is_confirmed {
+                assert_eq!(deposit, token.borrowed_money);
+                let mut change_confirm_token = token.clone();
+                change_confirm_token.is_confirmed = true;
+
+                assert!(contract_locked_tokens.remove(&token));
+                contract_locked_tokens.insert(&change_confirm_token);
+
+                self.tokens_stored_per_owner.insert(&seller_id, &contract_locked_tokens);
+
+                Promise::new(seller_id).transfer(deposit);
+            } else {
+                env::panic("Token has already been bought or owner canceled the order.".as_bytes())
+            }
+        } else {
+            env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
+        }
     }
 
     fn measure_min_token_storage_cost(&mut self) {
@@ -236,6 +294,8 @@ impl Contract {
             pub metadata: LazyOption<NFTMetadata>,
 
             pub users_val: HashMap<AccountId, i8>,
+
+            pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
         }
         let state_1: Old = env::state_read().expect("Error");
 //        let metadata = NFTMetadata {
@@ -256,7 +316,8 @@ impl Contract {
             extra_storage_in_bytes_per_token: state_1.extra_storage_in_bytes_per_token,
             metadata: state_1.metadata,
             users_val: state_1.users_val,
-            tokens_stored_per_owner: LookupMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
+            tokens_stored_per_owner: state_1.tokens_stored_per_owner,
+            nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap())
         }
     }
 }
