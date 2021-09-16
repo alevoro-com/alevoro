@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+        <link rel="stylesheet" href="./main.css">
+    </head>
+    <body>
+        <!--  LOGIN  -->
+        <div class="login-container">
+            <h1>alevoro.</h1>
+            <h2>Marketplace</h2>
+
+            <div>
+                <p class="score">-</p>
+                <button class="btn login" >Sign In</button>
+                <button class="btn increase" >Increase</button>
+                <button class="btn open-mint" >Mint</button>
+                <a href="./index.html">Profile</a>
+            </div>
+        </div>
+        <div class="gallery"></div>
+
+        <div class="modal modalNftLocked">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <span class="close closeNFT">&times;</span>
+                    <h2>Lend</h2>
+                </div>
+                <div>
+                    <p>Amount(NEAR): <b class="amount"></b></p>
+                    <p>Days: <b class="days"></b></p>
+                    <p>APR: <b class="apr"></b></p>
+                    <button class="btn transfer-money">Lend</button>
+                </div>
+            </div>
+        </div>
+
+        <script src="./nft-loan-market.js"></script>
+    </body>
+</html>
