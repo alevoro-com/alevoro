@@ -16,6 +16,7 @@ pub use crate::nft_core::*;
 pub use crate::token::*;
 pub use crate::enumerable::*;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use crate::locked_token::*;
 
 mod internal;
@@ -170,7 +171,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: u128, apr: u64, borrow_duration: u64) {
+    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: String, apr: u64, borrow_duration: u64) {
         let account_id = &env::predecessor_account_id();
         let token_id_cloned = token_id.clone();
 
@@ -221,13 +222,12 @@ impl Contract {
             .find(|x| x.token_id == token_id);
 
         if let Some(token) = token_exists_and_valid {
-            //assert!(token.owner_id == account_id);
+            assert!(token.owner_id.to_string() == account_id.to_string());
             assert!(!token.is_confirmed);
             assert!(locked_tokens.remove(&token));
 
             self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
             self.nft_locker_by_token_id.remove(&token_id);
-            //self.internal_add_token_to_owner(account_id, &token_id);
             self.internal_transfer(&"contract.alevoro.testnet".to_string(), account_id, &token_id, None, None);
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
@@ -270,7 +270,8 @@ impl Contract {
             env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
 
             if !token.is_confirmed {
-                assert_eq!(deposit, token.borrowed_money);
+                let borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
+                assert_eq!(deposit, borrowed_money);
                 let mut change_confirm_token = token.clone();
                 change_confirm_token.is_confirmed = true;
 

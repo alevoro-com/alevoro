@@ -1,6 +1,7 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
 import getConfig from "./config";
+import {NFT} from "./classes.js"
 
 const nearConfig = getConfig(process.env.NODE_ENV || "development");
 
@@ -34,7 +35,7 @@ async function connect(nearConfig) {
         // View methods are read-only – they don't modify the state, but usually return some value
         viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
-        changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back', 'transfer_deposit_for_nft'],
+        changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back'],
         // Sender is the account ID to initialize transactions.
         // getAccountId() will return empty string if user is still unauthorized
         sender: window.walletConnection.getAccountId()
@@ -42,16 +43,6 @@ async function connect(nearConfig) {
 
 }
 
-class NFT {
-    constructor(title, owner, token_id, url, isLocked) {
-        this.title = title;
-        this.owner = owner;
-        this.token_id = token_id;
-        this.url = url;
-        this.isLocked = isLocked;
-    }
-
-}
 
 function updateUI() {
     console.log("update UI");
@@ -86,58 +77,61 @@ function updateUI() {
     }
 }
 
+
 function getNFTsInfo(res, isLocked) {
     let nfts = [];
     for (let el of res) {
         console.log(el['token_id']);
         const image_url = el['metadata']['media'];
         const title = el['metadata']['title'] || "No title";
-        nfts.push(new NFT(title, el['owner_id'], el['token_id'], image_url, isLocked));
-        all_nfts[el['token_id']] = new NFT(title, el['owner_id'], el['token_id'], image_url, isLocked);
+        const curNFT = new NFT(title, el['owner_id'], el['token_id'], image_url, isLocked);
+        nfts.push(curNFT);
+        all_nfts[el['token_id']] = curNFT;
     }
     return nfts
 }
 
-function showGallery(nfts){
-  for (let i = 0; i < nfts.length; i++) {
-    document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
-  }
-  if (nfts.length > 0){
-    $('.container_image').click(function(){
-      showModalNft(this.id)
-    });
-  }
+function showGallery(nfts) {
+    for (let i = 0; i < nfts.length; i++) {
+        document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
+    }
+    if (nfts.length > 0) {
+        $('.container_image').click(function () {
+            showModalNft(this.id)
+        });
+    }
 }
 
-function showModalNft(id){
-  modalNFT.style.display = "block";
-  const nft = all_nfts[id];
-  const deposit = 1;
-  const lockedBlock = document.getElementById('modal-back-block');
-  const borrowBlock = document.getElementById('modal-borrow-block');
-  if (nft.isLocked) {
-    document.querySelector('.title-modal-nft').innerHTML = "Return";
-    lockedBlock.style.display = 'block';
-    borrowBlock.style.display = 'none';
-    $('.transfer-nft-back').click(function(){
-      contract.transfer_nft_back({ token_id: id}, GAS, deposit).then(updateUI);
-    });
-  } else {
-    document.querySelector('.title-modal-nft').innerHTML = "Borrow";
-    lockedBlock.style.display = 'none';
-    borrowBlock.style.display = 'block';
-    $('.transfer-nft').click(function(){
-      const amount = Number.parseInt(document.querySelector(".input-amount").value);
-      const days = Number.parseInt(document.querySelector(".input-days").value);
-      const apr = Number.parseInt(document.querySelector(".input-apr").value);
-    
-      if (amount && days && apr) {
-        const params = { token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
-        contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
-        modalNFT.style.display = "none";
-      }
-    });
-  }
+function showModalNft(id) {
+    modalNFT.style.display = "block";
+    const nft = all_nfts[id];
+    const deposit = 1;
+    const lockedBlock = document.getElementById('modal-back-block');
+    const borrowBlock = document.getElementById('modal-borrow-block');
+    if (nft.isLocked) {
+        document.querySelector('.title-modal-nft').innerHTML = "Return";
+        lockedBlock.style.display = 'block';
+        borrowBlock.style.display = 'none';
+        $('.transfer-nft-back').click(function () {
+            contract.transfer_nft_back({token_id: id}, GAS, deposit).then(updateUI);
+        });
+    } else {
+        document.querySelector('.title-modal-nft').innerHTML = "Borrow";
+        lockedBlock.style.display = 'none';
+        borrowBlock.style.display = 'block';
+        $('.transfer-nft').click(function () {
+            const amount = parseNearAmount(document.querySelector(".input-amount").value);
+            console.log(amount);
+            const days = Number.parseInt(document.querySelector(".input-days").value);
+            const apr = Number.parseInt(document.querySelector(".input-apr").value);
+
+            if (amount && days && apr) {
+                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
+                contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
+                modalNFT.style.display = "none";
+            }
+        });
+    }
 }
 
 
@@ -172,10 +166,6 @@ document.querySelector('.increase').addEventListener("click", function () {
     contract.increment({account_id: window.walletConnection.getAccountId()}).then(updateUI);
 });
 
-document.querySelector('.transfer-deposit-for-nft').addEventListener("click", function () {
-    const params = { token_id: "token-1631787432603" };
-    contract.transfer_deposit_for_nft(params, "", 100).then(updateUI);
-});
 
 document.querySelector('.closeMint').addEventListener("click", function () {
     modalMint.style.display = "none";
