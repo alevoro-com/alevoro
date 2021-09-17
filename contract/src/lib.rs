@@ -316,6 +316,62 @@ impl Contract {
         }
     }
 
+    #[payable]
+    pub fn repaid_loan(&mut self, token_id: TokenId) {
+        // deposit from js is Amount * apr / 100
+        let deposit = env::attached_deposit();
+        let owner_id = &env::predecessor_account_id();
+        
+        let mut contract_locked_tokens = self.tokens_stored_per_owner
+            .get(&owner_id).unwrap_or_else(|| {
+            UnorderedSet::new(
+                StorageKey::NFTsPerOwnerInner {
+                    account_id_hash: hash_account_id(&owner_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+
+        env::log("GET LOCKED TOKENS".as_bytes());
+
+        let token_exists_and_valid = contract_locked_tokens
+            .iter()
+            .find(|x| x.token_id == token_id);
+
+        env::log("CHECKED VALIDITY".as_bytes());
+
+        for x in contract_locked_tokens.iter() {
+            env::log(format!("Token_id: {}", x.token_id).as_bytes());
+        }
+
+        if let Some(token) = token_exists_and_valid {
+            env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
+
+            if token.is_confirmed {
+                let mut borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
+                borrowed_money = borrowed_money * u128::from(token.apr) / 100;
+                assert_eq!(deposit, borrowed_money);
+
+                assert!(contract_locked_tokens.remove(&token));
+                self.tokens_stored_per_owner.insert(&owner_id, &contract_locked_tokens);
+                // TODO: insert token to tokens_per_owner
+                // TODO?: remove token from nft_locker_by_token_id
+                if let Some(creditor) = token.creditor {
+                    Promise::new(creditor).transfer(deposit);
+                } else {
+                    env::panic("Creditor does not exist".as_bytes())
+                }
+            } else {
+                env::panic("Token isn't locked".as_bytes())
+            }
+        } else {
+            env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
+        }
+
+
+    }
+
     fn measure_min_token_storage_cost(&mut self) {
         let initial_storage_usage = env::storage_usage();
         let tmp_account_id = "a".repeat(64);
