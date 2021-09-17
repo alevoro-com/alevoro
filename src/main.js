@@ -33,7 +33,7 @@ async function connect(nearConfig) {
     // Initializing our contract APIs by contract name and configuration.
     window.contract = await new nearAPI.Contract(window.walletConnection.account(), nearConfig.contractName, {
         // View methods are read-only – they don't modify the state, but usually return some value
-        viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens'],
+        viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens', 'get_lend_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
         changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back'],
         // Sender is the account ID to initialize transactions.
@@ -63,7 +63,7 @@ function updateUI() {
             limit: '50'
         }).then(res => {
             const nfts = getNFTsInfo(res, false);
-            showGallery(nfts);
+            showGallery(nfts, true);
         });
 
         contract.get_locked_tokens({
@@ -71,7 +71,14 @@ function updateUI() {
             need_all: true
         }).then(res => {
             const nfts = getNFTsInfo(res, true);
-            showGallery(nfts);
+            showGallery(nfts, true);
+        });
+
+        contract.get_lend_tokens({
+            account_id: window.walletConnection.getAccountId()
+        }).then(res => {
+            const nfts = getNFTsInfo(res, true);
+            showGallery(nfts, false);
         });
 
     }
@@ -91,11 +98,11 @@ function getNFTsInfo(res, isLocked) {
     return nfts
 }
 
-function showGallery(nfts) {
+function showGallery(nfts, show_modal) {
     for (let i = 0; i < nfts.length; i++) {
         document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
     }
-    if (nfts.length > 0) {
+    if (show_modal && nfts.length > 0) {
         $('.container_image').click(function () {
             showModalNft(this.id)
         });
