@@ -1,7 +1,7 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
 import getConfig from "./config";
-import {NFT} from "./classes.js"
+import {NFT, LockedNFT} from "./classes.js"
 
 const nearConfig = getConfig(process.env.NODE_ENV || "development");
 
@@ -33,7 +33,7 @@ async function connect(nearConfig) {
     // Initializing our contract APIs by contract name and configuration.
     window.contract = await new nearAPI.Contract(window.walletConnection.account(), nearConfig.contractName, {
         // View methods are read-only – they don't modify the state, but usually return some value
-        viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens'],
+        viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens', 'get_lend_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
         changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back'],
         // Sender is the account ID to initialize transactions.
@@ -74,6 +74,13 @@ function updateUI() {
             showGallery(nfts);
         });
 
+        contract.get_lend_tokens({
+            account_id: window.walletConnection.getAccountId()
+        }).then(res => {
+            const nfts = getNFTsLockedInfo(res, true);
+            showGallery2(nfts);
+        });
+
     }
 }
 
@@ -91,6 +98,25 @@ function getNFTsInfo(res, isLocked) {
     return nfts
 }
 
+function getNFTsLockedInfo(res, isLocked) {
+    let nfts = [];
+    for (let el of res) {
+        const json = el['json_token'];
+        const locked = el['locked_token'];
+        const image_url = json['metadata']['media'];
+        const title = json['metadata']['title'] || "No title";
+
+        const curNFT = new LockedNFT(
+            new NFT(title, json['owner_id'], json['token_id'], image_url, isLocked),
+            locked['apr'], locked['borrowed_money'], locked['duration'], locked['owner_id']
+        );
+
+        nfts.push(curNFT);
+        // market_nfts[json['token_id']] = curNFT;
+    }
+    return nfts
+}
+
 function showGallery(nfts) {
     for (let i = 0; i < nfts.length; i++) {
         document.getElementsByClassName("gallery")[0].innerHTML += showNFT(nfts[i]);
@@ -99,6 +125,12 @@ function showGallery(nfts) {
         $('.container_image').click(function () {
             showModalNft(this.id)
         });
+    }
+}
+
+function showGallery2(nfts) {
+    for (let i = 0; i < nfts.length; i++) {
+        document.getElementsByClassName("gallery")[0].innerHTML += showNFTLocked(nfts[i]);
     }
 }
 
@@ -132,6 +164,15 @@ function showModalNft(id) {
             }
         });
     }
+}
+
+function showNFTLocked(nft) {
+    const div_info = `class=\"container_image\" id=\"${nft.NFT.token_id}\"`;
+    return "<div class=\"nft\">\n" +
+        "   <div class=\"nft__image\"><img " + div_info + " src=\"" + nft.NFT.url + "\" alt=\"" + nft.NFT.title + "\"></div>\n" +
+        "   <h2 class=\"nft__title\">" + nft.NFT.title + "</h2>\n" +
+        "   <p class=\"nft__owner\">" + nft.owner_id + "</p>\n" +
+        "</div>"
 }
 
 
