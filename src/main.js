@@ -105,7 +105,7 @@ function showGallery(nfts) {
 function showModalNft(id) {
     modalNFT.style.display = "block";
     const nft = all_nfts[id];
-    const deposit = 1;
+    const deposit = parseNearAmount('0.1');
     const lockedBlock = document.getElementById('modal-back-block');
     const borrowBlock = document.getElementById('modal-borrow-block');
     if (nft.isLocked) {

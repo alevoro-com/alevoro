@@ -1,4 +1,5 @@
 use crate::*;
+use std::cmp::max;
 
 #[near_bindgen]
 impl Contract {
@@ -22,10 +23,12 @@ impl Contract {
 
         let initial_storage_usage = env::storage_usage();
         let mut owner_id = env::predecessor_account_id();
-        env::log(format!("TOKEN OWNER ID OLD: {}", owner_id).as_bytes());
+        // env::log(format!("TOKEN OWNER ID OLD: {}", owner_id).as_bytes());
         if let Some(receiver_id) = receiver_id {
             owner_id = receiver_id.into();
         }
+
+        env::log(format!("1 Usage {}", env::storage_usage()).as_bytes());
 
         // CUSTOM - create royalty map
         let mut royalty = HashMap::new();
@@ -36,23 +39,32 @@ impl Contract {
                 royalty.insert(account, amount);
             }
         }
-        env::log(format!("TOKEN OWNER ID: {}", owner_id).as_bytes());
+        // env::log(format!("TOKEN OWNER ID: {}", owner_id).as_bytes());
+        env::log(format!("2 Usage {}", env::storage_usage()).as_bytes());
         let token = Token {
             owner_id,
             approved_account_ids: Default::default(),
             next_approval_id: 0,
             royalty,
         };
+        env::log(format!("3 Usage {}", env::storage_usage()).as_bytes());
         assert!(
             self.tokens_by_id.insert(&final_token_id, &token).is_none(),
             "Token already exists"
         );
+        env::log(format!("4 Usage {}", env::storage_usage()).as_bytes());
         self.token_metadata_by_id.insert(&final_token_id, &metadata);
+        env::log(format!("5 Usage {}", env::storage_usage()).as_bytes());
         self.internal_add_token_to_owner(&token.owner_id, &final_token_id);
+        env::log(format!("6 Usage {}", env::storage_usage()).as_bytes());
 
-        let new_token_size_in_bytes = env::storage_usage() - initial_storage_usage;
+        env::log(format!("Usage {}. Was {}", env::storage_usage(), initial_storage_usage).as_bytes());
+
+        let new_token_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128) as StorageUsage;
         let required_storage_in_bytes =
             self.extra_storage_in_bytes_per_token + new_token_size_in_bytes;
+
+        env::log(format!("Mint req storage {}", required_storage_in_bytes).as_bytes());
 
         refund_deposit(required_storage_in_bytes);
     }

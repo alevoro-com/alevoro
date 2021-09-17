@@ -104,7 +104,7 @@ impl NonFungibleTokenCore for Contract {
         approval_id: Option<U64>,
         memo: Option<String>,
     ) {
-        assert_one_yocto();
+        // assert_one_yocto();
         let sender_id = env::predecessor_account_id();
         let previous_token = self.internal_transfer(
             &sender_id,
@@ -130,7 +130,7 @@ impl NonFungibleTokenCore for Contract {
         balance: Option<U128>,
         max_len_payout: Option<u32>,
     ) -> Option<Payout> {
-        assert_one_yocto();
+        // assert_one_yocto();
         let sender_id = env::predecessor_account_id();
         let previous_token = self.internal_transfer(
             &sender_id,
@@ -185,7 +185,7 @@ impl NonFungibleTokenCore for Contract {
         memo: Option<String>,
         msg: String,
     ) -> Promise {
-        assert_one_yocto();
+        // assert_one_yocto();
         let sender_id = env::predecessor_account_id();
         let previous_token = self.internal_transfer(
             &sender_id,
@@ -261,7 +261,7 @@ impl NonFungibleTokenCore for Contract {
 
     #[payable]
     fn nft_revoke(&mut self, token_id: TokenId, account_id: ValidAccountId) {
-        assert_one_yocto();
+        // assert_one_yocto();
         let mut token = self.tokens_by_id.get(&token_id).expect("Token not found");
         let predecessor_account_id = env::predecessor_account_id();
         assert_eq!(&predecessor_account_id, &token.owner_id);
@@ -277,7 +277,7 @@ impl NonFungibleTokenCore for Contract {
 
     #[payable]
     fn nft_revoke_all(&mut self, token_id: TokenId) {
-        assert_one_yocto();
+        // assert_one_yocto();
         let mut token = self.tokens_by_id.get(&token_id).expect("Token not found");
         let predecessor_account_id = env::predecessor_account_id();
         assert_eq!(&predecessor_account_id, &token.owner_id);

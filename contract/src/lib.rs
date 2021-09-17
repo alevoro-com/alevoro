@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::cmp::min;
+use std::cmp::{min, max};
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
@@ -173,9 +173,10 @@ impl Contract {
     #[payable]
     pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: String, apr: u64, borrow_duration: u64) {
         let account_id = &env::predecessor_account_id();
+        let initial_storage_usage = env::storage_usage() as i128;
         let token_id_cloned = token_id.clone();
 
-        self.nft_transfer(ValidAccountId::try_from("contract.alevoro.testnet".to_string()).unwrap(), token_id, None, None);
+        self.nft_transfer(ValidAccountId::try_from("contract.ze.testnet".to_string()).unwrap(), token_id, None, None);
 
         let mut locked_tokens = self.tokens_stored_per_owner.get(account_id).unwrap_or_else(|| {
             UnorderedSet::new(
@@ -198,12 +199,26 @@ impl Contract {
         });
         self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
         self.nft_locker_by_token_id.insert(&token_id_cloned, account_id);
+
+        let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
+
+        env::log(format!("Was {}. Now - was: {}.", initial_storage_usage, market_lock_size_in_bytes).as_bytes());
+
+        let required_storage_in_bytes =
+            ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
+
+        env::log(format!("Extra storage now: {}.", self.extra_storage_in_bytes_per_token).as_bytes());
+        env::log(format!("Required now: {}.", required_storage_in_bytes).as_bytes());
+
+        refund_deposit(required_storage_in_bytes);
+
         env::log(format!("ADDED TOKEN ID: {}, SELLER: {}", token_id_cloned, self.nft_locker_by_token_id.get(&token_id_cloned).unwrap()).as_bytes())
     }
 
     #[payable]
     pub fn transfer_nft_back(&mut self, token_id: TokenId) {
         let account_id = &env::predecessor_account_id();
+        let initial_storage_usage = env::storage_usage() as i128;
         // let token_id_cloned = token_id.clone();
 
         let mut locked_tokens = self.tokens_stored_per_owner
@@ -228,7 +243,17 @@ impl Contract {
 
             self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
             self.nft_locker_by_token_id.remove(&token_id);
-            self.internal_transfer(&"contract.alevoro.testnet".to_string(), account_id, &token_id, None, None);
+            self.internal_transfer(&"contract.ze.testnet".to_string(), account_id, &token_id, None, None);
+
+            let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
+
+            let required_storage_in_bytes =
+                ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
+
+            env::log(format!("Was {}. Now: {}. Required: {}.", initial_storage_usage, env::storage_usage(), required_storage_in_bytes).as_bytes());
+
+
+            refund_deposit(required_storage_in_bytes);
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
         }
@@ -299,7 +324,16 @@ impl Contract {
                 .try_to_vec()
                 .unwrap(),
         );
+        let locked_u = UnorderedSet::new(
+            StorageKey::NFTsPerOwnerInner {
+                account_id_hash: hash_account_id(&tmp_account_id),
+            }
+                .try_to_vec()
+                .unwrap(),
+        );
         self.tokens_per_owner.insert(&tmp_account_id, &u);
+        self.tokens_stored_per_owner.insert(&tmp_account_id, &locked_u);
+
 
         let tokens_per_owner_entry_in_bytes = env::storage_usage() - initial_storage_usage;
         let owner_id_extra_cost_in_bytes = (tmp_account_id.len() - self.owner_id.len()) as u64;
@@ -308,6 +342,7 @@ impl Contract {
             tokens_per_owner_entry_in_bytes + owner_id_extra_cost_in_bytes;
 
         self.tokens_per_owner.remove(&tmp_account_id);
+        self.tokens_stored_per_owner.remove(&tmp_account_id);
     }
 
 
@@ -341,7 +376,7 @@ impl Contract {
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
-            owner_id: "contract.alevoro.testnet".to_string(),
+            owner_id: "contract.ze.testnet".to_string(),
             extra_storage_in_bytes_per_token: 0,
             metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
             users_val: HashMap::new(),
