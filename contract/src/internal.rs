@@ -38,6 +38,7 @@ pub(crate) fn refund_deposit(storage_used: u64) {
     );
 
     let refund = attached_deposit - required_cost;
+    env::log(format!("REFUND: {}", refund).as_bytes());
     if refund > 1 {
         Promise::new(env::predecessor_account_id()).transfer(refund);
     }
