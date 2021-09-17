@@ -1,0 +1,1 @@
+near call contract.pep.testnet new '{"owner_id": "contract.pep.testnet"}' --accountId pep.testnet

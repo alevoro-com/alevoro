@@ -68,10 +68,12 @@ pub enum StorageKey {
     LockerByTokenId
 }
 
+const CONTRACT_NAME:&str = "contract.pep.testnet";
+
 #[near_bindgen]
 impl Contract {
     #[init]
-    pub fn new(owner_id: ValidAccountId, metadata: NFTMetadata) -> Self {
+    pub fn new(owner_id: ValidAccountId) -> Self {
         let mut this = Self {
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
@@ -82,7 +84,7 @@ impl Contract {
             extra_storage_in_bytes_per_token: 0,
             metadata: LazyOption::new(
                 StorageKey::NftMetadata.try_to_vec().unwrap(),
-                Some(&metadata),
+                None,
             ),
             users_val: HashMap::new(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
@@ -176,7 +178,7 @@ impl Contract {
         let initial_storage_usage = env::storage_usage() as i128;
         let token_id_cloned = token_id.clone();
 
-        self.nft_transfer(ValidAccountId::try_from("contract.ze.testnet".to_string()).unwrap(), token_id, None, None);
+        self.nft_transfer(ValidAccountId::try_from(CONTRACT_NAME.to_string()).unwrap(), token_id, None, None);
 
         let mut locked_tokens = self.tokens_stored_per_owner.get(account_id).unwrap_or_else(|| {
             UnorderedSet::new(
@@ -243,7 +245,7 @@ impl Contract {
 
             self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
             self.nft_locker_by_token_id.remove(&token_id);
-            self.internal_transfer(&"contract.ze.testnet".to_string(), account_id, &token_id, None, None);
+            self.internal_transfer(&CONTRACT_NAME.to_string(), account_id, &token_id, None, None);
 
             let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
 
@@ -376,7 +378,7 @@ impl Contract {
             tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
             tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
             token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
-            owner_id: "contract.ze.testnet".to_string(),
+            owner_id: CONTRACT_NAME.to_string(),
             extra_storage_in_bytes_per_token: 0,
             metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
             users_val: HashMap::new(),
