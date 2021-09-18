@@ -114,14 +114,7 @@ impl Contract {
     ) -> Vec<JsonLockedToken> {
         let mut all_locked_tokens = vec![];
         for account_id in self.tokens_stored_per_owner.keys_as_vector().iter() {
-            let locked_tokens = self.get_locked_instances(account_id, false);
-            for locked_token in locked_tokens.iter() {
-                let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
-                all_locked_tokens.push(JsonLockedToken {
-                    json_token: json_token,
-                    locked_token: locked_token.clone(),
-                })
-            }
+            all_locked_tokens.append(&mut self.get_locked_tokens(account_id, false))
         }
         all_locked_tokens
     }
@@ -129,12 +122,16 @@ impl Contract {
     pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
-        need_all: bool,
-    ) -> Vec<JsonToken> {
+        need_all: bool
+    ) -> Vec<JsonLockedToken> {
         let mut locked_tokens_jsons = vec![];
         let locked_tokens = self.get_locked_instances(account_id, need_all);
         for locked_token in locked_tokens.iter() {
-            locked_tokens_jsons.push(self.nft_token(locked_token.token_id.clone()).unwrap());
+            let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
+            locked_tokens_jsons.push(JsonLockedToken {
+                json_token: json_token,
+                locked_token: locked_token.clone()
+            });
         }
         locked_tokens_jsons
     }
@@ -143,8 +140,8 @@ impl Contract {
     fn get_locked_instances(
         &self,
         account_id: AccountId,
-        need_all: bool,
-    ) -> Vec<LockedToken> {
+        need_all: bool
+     )-> Vec<LockedToken> {
         let mut tmp = vec![];
         let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
         let tokens = if let Some(tokens_owner) = tokens_owner {
@@ -306,6 +303,8 @@ impl Contract {
                 assert_eq!(deposit, borrowed_money);
                 let mut change_confirm_token = token.clone();
                 change_confirm_token.is_confirmed = true;
+                change_confirm_token.start_time = Some(env::block_timestamp());
+                change_confirm_token.creditor = Some(lender_id.to_string());
 
                 assert!(contract_locked_tokens.remove(&token));
                 contract_locked_tokens.insert(&change_confirm_token);
