@@ -37,8 +37,8 @@ async function connect(nearConfig) {
         // View methods are read-only – they don't modify the state, but usually return some value
         viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens', 'get_lend_tokens', 'get_all_locked_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
-        changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back', 'repaid_loan',
-            'transfer_deposit_for_nft'],
+        changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back', 'repaid_loan', 'transfer_deposit_for_nft',
+            'check_transfer_overdue_nft_to_creditor'],
         // Sender is the account ID to initialize transactions.
         // getAccountId() will return empty string if user is still unauthorized
         sender: window.walletConnection.getAccountId()
@@ -224,8 +224,13 @@ document.querySelector('.open-mint').addEventListener("click", function () {
     modalMint.style.display = "block";
 });
 
+
 document.querySelector('.increase').addEventListener("click", function () {
     contract.increment({account_id: window.walletConnection.getAccountId()}).then(updateUI);
+});
+
+document.querySelector('.check-overdue').addEventListener("click", function () {
+    contract.check_transfer_overdue_nft_to_creditor({token_id: "token-1631987533962"}).then(updateUI);
 });
 
 
