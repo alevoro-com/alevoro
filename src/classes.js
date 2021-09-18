@@ -8,19 +8,23 @@ class NFT {
         this.url = url;
         this.isLocked = isLocked;
     }
-
 }
 
 
-class LockedNFT {
-    constructor(NFT, apr, borrowed_money, duration, owner_id) {
-        this.NFT = NFT;
+
+class LockedNFT extends NFT {
+    constructor(title, owner, token_id, url, isLocked,
+                apr, borrowed_money, duration, real_owner, is_confirmed, creditor, start_time) {
+        super(title, owner, token_id, url, isLocked);
+
         this.apr = apr;
         this.borrowed_money = borrowed_money;
         this.duration = duration;
-        this.owner_id = owner_id;
+        this.real_owner = real_owner;
+        this.is_confirmed = is_confirmed;
+        this.creditor = creditor;
+        this.start_time = start_time;
     }
-
 }
 
 
