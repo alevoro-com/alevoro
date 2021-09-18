@@ -17,7 +17,8 @@ export const {
 
 let allNfts = {};
 let marketNfts = {};
-let navigatorState = "Profile";
+let myLoanNFTs = {};
+let navigatorState = "Market";
 
 async function connect(nearConfig) {
     // Connects to NEAR and provides `near`, `walletAccount` and `contract` objects in `window` scope
@@ -35,10 +36,10 @@ async function connect(nearConfig) {
     // Initializing our contract APIs by contract name and configuration.
     window.contract = await new nearAPI.Contract(window.walletConnection.account(), nearConfig.contractName, {
         // View methods are read-only – they don't modify the state, but usually return some value
-        viewMethods: ['get_num', 'nft_tokens_for_owner', 'get_locked_tokens', 'get_lend_tokens', 'get_all_locked_tokens'],
+        viewMethods: ['get_debtors_tokens', 'nft_tokens_for_owner', 'get_locked_tokens', 'get_all_locked_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
-        changeMethods: ['increment', 'nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back', 'repaid_loan', 'transfer_deposit_for_nft',
-            'check_transfer_overdue_nft_to_creditor'],
+        changeMethods: ['nft_mint', 'transfer_nft_to_contract', 'transfer_nft_back', 'repaid_loan',
+            'transfer_deposit_for_nft', 'check_transfer_overdue_nft_to_creditor'],
         // Sender is the account ID to initialize transactions.
         // getAccountId() will return empty string if user is still unauthorized
         sender: window.walletConnection.getAccountId()
@@ -49,22 +50,21 @@ async function connect(nearConfig) {
 
 function updateUI() {
     console.log("update UI");
-    if (navigatorState === "Profile") {
-        document.querySelector('.navigator-1').innerHTML = "Market";
-        document.querySelector('.page-title').innerHTML = navigatorState;
-    } else if (navigatorState === "Market") {
-        document.querySelector('.navigator-1').innerHTML = "Profile";
-        document.querySelector('.page-title').innerHTML = navigatorState;
-    }
+
+    document.querySelector('.'+navigatorState.toLowerCase()+'-btn').style.textDecoration = "underline";
     if (!window.walletConnection.getAccountId()) {
-        document.querySelector('.score').innerHTML = "NO";
+        document.querySelector('.my-account').style.display = 'none';
+        document.querySelector('.my-karma').style.display = 'none';
         document.querySelector('.login').innerHTML = "sign in";
     } else {
+        let myAcc = document.querySelector('.my-account');
+        let myKarma = document.querySelector('.my-karma');
+        myAcc.style.display = 'block';
+        myAcc.innerHTML = window.walletConnection.getAccountId();
+        myKarma.style.display = 'block';
+        myKarma.innerHTML = "Karma: 100";
+
         document.querySelector('.login').innerHTML = "sign out";
-        contract.get_num({account_id: window.walletConnection.getAccountId()}).then(count => {
-            console.log(`get num ${count}`);
-            document.querySelector('.score').innerHTML = count;
-        });
         document.getElementsByClassName("gallery")[0].innerHTML = "";
 
         contract.nft_tokens_for_owner({
@@ -74,7 +74,7 @@ function updateUI() {
         }).then(res => {
             const nfts = getNFTsInfo(res, false);
             addLoadedNfts(nfts,false);
-            if (navigatorState === "Profile") {
+            if (navigatorState === "MyNFTs") {
                 showGallery(nfts, false);
             }
         });
@@ -85,7 +85,7 @@ function updateUI() {
         }).then(res => {
             const nfts = getNFTsInfo(res, true);
             addLoadedNfts(nfts, false);
-            if (navigatorState === "Profile") {
+            if (navigatorState === "MyNFTs") {
                 showGallery(nfts, false);
             }
         });
@@ -99,12 +99,19 @@ function updateUI() {
         });
 
 
-        // contract.get_lend_tokens({
-        //     account_id: window.walletConnection.getAccountId()
-        // }).then(res => {
-        //     const nfts = getNFTsInfo(res, true);
-        //     showGallery2(nfts);
-        // });
+        contract.get_debtors_tokens({
+            account_id: window.walletConnection.getAccountId()
+        }).then(res => {
+            const nfts = getNFTsInfo(res, true);
+            if (navigatorState === "MyLoans") {
+                if (nfts.length === 0){
+                    const alertMsg = "You have no debtors";
+                    document.querySelector(".gallery").innerHTML = "<p class=\'alert\'>" + alertMsg + "</p>";
+                } else {
+                    showGallery(nfts, false);
+                }
+            }
+        });
 
     }
 }
@@ -205,6 +212,22 @@ function showModalNft(id, isMarket) {
     }
 }
 
+function changeNavigatorState(newState){
+    // if (window.walletConnection.getAccountId()) {
+    //     if (navigatorState !== newState) {
+    //         navigatorState = newState;
+    //         updateUI()
+    //     }
+    // } else if (navigatorState !== 'Market'){
+    //
+    // }
+    if (navigatorState !== newState) {
+        document.querySelector('.'+navigatorState.toLowerCase()+'-btn').style.textDecoration = "none";
+        navigatorState = newState;
+        updateUI()
+    }
+}
+
 
 
 
@@ -220,18 +243,9 @@ let modalMint = document.getElementById("mintModal");
 let modalNFT = document.getElementById("nftModal");
 
 
-document.querySelector('.open-mint').addEventListener("click", function () {
-    modalMint.style.display = "block";
-});
-
-
-document.querySelector('.increase').addEventListener("click", function () {
-    contract.increment({account_id: window.walletConnection.getAccountId()}).then(updateUI);
-});
-
-document.querySelector('.check-overdue').addEventListener("click", function () {
-    contract.check_transfer_overdue_nft_to_creditor({token_id: "token-1631987533962"}).then(updateUI);
-});
+// document.querySelector('.check-overdue').addEventListener("click", function () {
+//     contract.check_transfer_overdue_nft_to_creditor({token_id: "token-1631987533962"}).then(updateUI);
+// });
 
 
 document.querySelector('.closeMint').addEventListener("click", function () {
@@ -260,13 +274,21 @@ document.querySelector('.mint').addEventListener("click", function () {
     }
 });
 
-document.querySelector('.navigator-1').addEventListener("click", function () {
-    if (navigatorState === "Profile") {
-        navigatorState = "Market";
-    } else {
-        navigatorState = "Profile";
-    }
-    updateUI()
+document.querySelector('.mint-btn').addEventListener("click", function () {
+    modalMint.style.display = "block";
+});
+
+
+document.querySelector('.market-btn').addEventListener("click", function () {
+    changeNavigatorState("Market");
+});
+
+document.querySelector('.mynfts-btn').addEventListener("click", function () {
+    changeNavigatorState("MyNFTs");
+});
+
+document.querySelector('.myloans-btn').addEventListener("click", function () {
+    changeNavigatorState("MyLoans");
 });
 
 

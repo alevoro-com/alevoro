@@ -1,5 +1,84 @@
+@font-face {
+    font-family: aharoni;
+    src: url(assets/fonts/ahronbd.ttf);
+}
+
+.site-title {
+    font-size: 10vh;
+    font-family: 'aharoni', serif;
+    text-align: center;
+    color: white;
+}
+
+.login-container {
+    text-align: right;
+    font-family: 'aharoni', serif;
+    font-size: 2vh;
+    color: white;
+    position: absolute;
+    top: 20px;
+    right: 40px;
+}
+
+.my-karma {
+    font-size: 1vh;
+}
+
+.navigator-container{
+    border: 1px dashed white;
+    margin-top: -100px;
+    margin-left: 10%;
+    margin-right: 10%;
+    display: flex;
+    justify-content: center;
+    font-family: 'aharoni', serif;
+    font-size: 2vh;
+    color: white;
+    padding:1%;
+}
+
+.navigator {
+    padding:1%;
+}
+
+.btn {
+    cursor: pointer;
+}
+
+.btn:hover {
+    color: grey;
+}
+
+.bg {
+    position: fixed;
+    z-index: -10;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+}
+.bg__image {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    margin: auto;
+    min-width: 50%;
+    min-height: 50%;
+}
+
 .gallery {
+    background-color: black;
+    height: 100%;
+    margin-left: 10%;
+    margin-right: 10%;
     margin-top: 100px;
+}
+
+.alert {
+    font-size: 2vh;
+    color: white;
 }
 
 .nft {
@@ -12,8 +91,8 @@
     border: 2px solid grey;
 
     text-align: center;
-    margin-left: 10px;
-    margin-top: 10px;
+    margin: 20px;
+
 }
 
 
@@ -39,6 +118,34 @@
     height: 100px;
     background: red;
 }
+
+
+
+/*#videoBG {*/
+/*    position:fixed;*/
+/*    z-index: -1;*/
+/*}*/
+/*@media (min-aspect-ratio: 16/9) {*/
+/*    #videoBG {*/
+/*        width:100%;*/
+/*        height: auto;*/
+/*    }*/
+/*}*/
+/*@media (max-aspect-ratio: 16/9) {*/
+/*    #videoBG {*/
+/*        width:auto;*/
+/*        height: 100%;*/
+/*    }*/
+/*}*/
+/*@media (max-width: 767px) {*/
+/*    #videoBG {*/
+/*        display: none;*/
+/*    }*/
+/*    body {*/
+/*        background: url('assets/static_bg.png');*/
+/*        background-size: cover;*/
+/*    }*/
+/*}*/
 
 
 /* The Modal (background) */
