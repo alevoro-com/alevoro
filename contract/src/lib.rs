@@ -71,7 +71,7 @@ pub enum StorageKey {
     LockerByTokenId,
 }
 
-const CONTRACT_NAME: &str = "contract.alevoro.testnet";
+const CONTRACT_NAME: &str = "contract.pep.testnet";
 
 #[near_bindgen]
 impl Contract {

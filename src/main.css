@@ -77,8 +77,12 @@
 }
 
 .alert {
+    margin: auto;
+    font-family: 'aharoni', serif;
+    width: 200px;
+    height: 100px;
     font-size: 2vh;
-    color: white;
+    color: red;
 }
 
 .nft {
@@ -166,7 +170,7 @@
 /* Modal Content */
 .modal-content {
 
-    horiz-align: center;
+    text-align: center;
     position: relative;
     background-color: #fefefe;
     margin: auto;
@@ -201,14 +205,14 @@
 
 .close:hover,
 .close:focus {
-    color: #000;
+    color: grey;
     text-decoration: none;
     cursor: pointer;
 }
 
 .modal-header {
     padding: 2px 16px;
-    background-color: #5cb85c;
+    background-color: black;
     color: white;
 }
 
