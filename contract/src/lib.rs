@@ -49,6 +49,8 @@ pub struct Contract {
 
     pub tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
 
+    pub credit_tokens_per_creditor : UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
+
     pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>,
 }
 
@@ -65,10 +67,12 @@ pub enum StorageKey {
     TokenTypesLocked,
     NFTsPerOwner,
     NFTsPerOwnerInner { account_id_hash: CryptoHash },
-    LockerByTokenId
+    CreditNFTsPerOwner,
+    CreditNFTsPerOwnerInner { account_id_hash: CryptoHash },
+    LockerByTokenId,
 }
 
-const CONTRACT_NAME:&str = "contract.pep.testnet";
+const CONTRACT_NAME: &str = "contract.ze.testnet";
 
 #[near_bindgen]
 impl Contract {
@@ -89,6 +93,7 @@ impl Contract {
             users_val: HashMap::new(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
+            credit_tokens_per_creditor : UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
         };
 
         this.measure_min_token_storage_cost();
@@ -114,7 +119,7 @@ impl Contract {
                 let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
                 all_locked_tokens.push(JsonLockedToken {
                     json_token: json_token,
-                    locked_token: locked_token.clone()
+                    locked_token: locked_token.clone(),
                 })
             }
         }
@@ -124,7 +129,7 @@ impl Contract {
     pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
-        need_all: bool
+        need_all: bool,
     ) -> Vec<JsonToken> {
         let mut locked_tokens_jsons = vec![];
         let locked_tokens = self.get_locked_instances(account_id, need_all);
@@ -138,8 +143,8 @@ impl Contract {
     fn get_locked_instances(
         &self,
         account_id: AccountId,
-        need_all: bool
-     )-> Vec<LockedToken> {
+        need_all: bool,
+    ) -> Vec<LockedToken> {
         let mut tmp = vec![];
         let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
         let tokens = if let Some(tokens_owner) = tokens_owner {
@@ -307,6 +312,21 @@ impl Contract {
 
                 self.tokens_stored_per_owner.insert(&seller_id, &contract_locked_tokens);
 
+                let mut tokens_for_borrowed_money = self.credit_tokens_per_creditor
+                    .get(&lender_id).unwrap_or_else(|| {
+                    UnorderedSet::new(
+                        StorageKey::CreditNFTsPerOwnerInner {
+                            account_id_hash: hash_account_id(&lender_id),
+                        }
+                            .try_to_vec()
+                            .unwrap(),
+                    )
+                });
+
+                tokens_for_borrowed_money.insert(&change_confirm_token);
+
+                self.credit_tokens_per_creditor.insert(lender_id, &tokens_for_borrowed_money);
+
                 Promise::new(seller_id).transfer(deposit);
             } else {
                 env::panic("Token has already been bought or owner canceled the order.".as_bytes())
@@ -321,7 +341,7 @@ impl Contract {
         // deposit from js is Amount * apr / 100
         let deposit = env::attached_deposit();
         let owner_id = &env::predecessor_account_id();
-        
+
         let mut contract_locked_tokens = self.tokens_stored_per_owner
             .get(&owner_id).unwrap_or_else(|| {
             UnorderedSet::new(
@@ -370,6 +390,32 @@ impl Contract {
         }
 
 
+    }
+
+    pub fn get_lend_tokens(&self, account_id: AccountId) -> Vec<JsonLockedToken> {
+        let credit_tokens = self.credit_tokens_per_creditor
+            .get(&account_id).unwrap_or_else(|| {
+            UnorderedSet::new(
+                StorageKey::CreditNFTsPerOwnerInner {
+                    account_id_hash: hash_account_id(&account_id),
+                }
+                    .try_to_vec()
+                    .unwrap(),
+            )
+        });
+
+        let mut result = vec![];
+        for locked_token in credit_tokens.iter() {
+            let token_id = locked_token.token_id.clone();
+            result.push(
+                JsonLockedToken {
+                    json_token: self.nft_token(token_id).unwrap(),
+                    locked_token: locked_token.clone()
+                }
+            )
+        }
+
+        return result;
     }
 
     fn measure_min_token_storage_cost(&mut self) {
@@ -439,7 +485,8 @@ impl Contract {
             metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
             users_val: HashMap::new(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
-            nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap())
+            credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
+            nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
         }
     }
 }

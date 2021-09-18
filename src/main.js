@@ -112,7 +112,7 @@ function getNFTsLockedInfo(res, isLocked) {
         );
 
         nfts.push(curNFT);
-        market_nfts[json['token_id']] = curNFT;
+        // market_nfts[json['token_id']] = curNFT;
     }
     return nfts
 }
