@@ -6,23 +6,29 @@
   <link rel="stylesheet" href="./main.css">
 </head>
 <body>
+<!--  <video id="videoBG" poster="assets/static_bg.png" autoplay muted loop>-->
+<!--    <source src="assets/1.mp4" type="video/mp4">-->
+<!--  </video>-->
+  <div class="bg">
+    <img class="bg__image" src="assets/bg.jpg" alt="">
+  </div>
+  <h1 class="site-title">alevoro.</h1>
+  <h2 class="page-title">Profile</h2>
   <!--  LOGIN  -->
   <div class="login-container">
-    <h1>alevoro.</h1>
-    <h2 class="page-title">Profile</h2>
-
-    <div>
-      <p class="score">-</p>
-      <button class="btn login" >Sign In</button>
-      <button class="btn increase" >Increase</button>
-      <button class="btn open-mint" >Mint</button>
-      <button class="btn check-overdue" >OVERDUE</button>
-    </div>
-    <div>
-      <button class="navigator-1">Market</button>
-    </div>
+      <p class="my-account"></p>
+      <p class="my-karma"></p>
+      <p class="btn login" >Sign In</p>
   </div>
+  <div class="navigator-container">
+    <b class="btn navigator market-btn">Market</b><b class="navigator">|</b>
+    <b class="btn navigator mint-btn">Mint</b><b class="navigator">|</b>
+    <b class="btn navigator mynfts-btn">My NFTs</b><b class="navigator">|</b>
+    <b class="btn navigator myloans-btn">My loans</b>
+  </div>
+
   <div class="gallery"></div>
+  <div class="alert">Please, sign in</div>
 
   <!--  MODALS  -->
   <div id="mintModal" class="modal">

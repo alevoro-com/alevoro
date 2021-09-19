@@ -46,8 +46,6 @@ pub struct Contract {
 
     pub metadata: LazyOption<NFTMetadata>,
 
-    pub users_val: HashMap<AccountId, i8>,
-
     pub tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
 
     pub credit_tokens_per_creditor: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
@@ -73,7 +71,7 @@ pub enum StorageKey {
     LockerByTokenId,
 }
 
-const CONTRACT_NAME: &str = "contract.ze.testnet";
+const CONTRACT_NAME: &str = "contract.pep.testnet";
 
 #[near_bindgen]
 impl Contract {
@@ -91,7 +89,6 @@ impl Contract {
                 StorageKey::NftMetadata.try_to_vec().unwrap(),
                 None,
             ),
-            users_val: HashMap::new(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
             credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
@@ -100,14 +97,6 @@ impl Contract {
         this.measure_min_token_storage_cost();
 
         this
-    }
-
-    pub fn get_num(&self, account_id: AccountId) -> i8 {
-        let val = self.users_val.get(&account_id).cloned();
-        if val.is_none() {
-            return 0;
-        }
-        return val.unwrap();
     }
 
     pub fn get_all_locked_tokens(
@@ -137,12 +126,32 @@ impl Contract {
         locked_tokens_jsons
     }
 
+    pub fn get_debtors_tokens(
+        &self,
+        account_id: AccountId
+    ) -> Vec<JsonLockedToken> {
+        //let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
+
+        let mut result = vec![];
+//        for locked_token in credit_tokens.iter() {
+//            let token_id = locked_token.token_id.clone();
+//            result.push(
+//                JsonLockedToken {
+//                    json_token: self.nft_token(token_id).unwrap(),
+//                    locked_token: locked_token.clone(),
+//                }
+//            )
+        //       }
+
+        result
+    }
+
     #[private]
     fn get_locked_instances(
         &self,
         account_id: AccountId,
         need_all: bool
-     )-> Vec<LockedToken> {
+    )-> Vec<LockedToken> {
         let mut tmp = vec![];
         let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
         let tokens = if let Some(tokens_owner) = tokens_owner {
@@ -160,19 +169,6 @@ impl Contract {
             }
         }
         tmp
-    }
-
-
-    pub fn increment(&mut self, account_id: AccountId) {
-        let val = self.users_val.get(&account_id).cloned();
-        let mut new_val: i8 = 0;
-        if val.is_some() {
-            new_val = val.unwrap();
-        }
-        new_val += 1;
-        self.users_val.insert(account_id, new_val);
-        let log_message = format!("Increased number to {}", new_val);
-        env::log(log_message.as_bytes());
     }
 
     #[payable]
@@ -257,7 +253,7 @@ impl Contract {
             env::log(format!("Was {}. Now: {}. Required: {}.", initial_storage_usage, env::storage_usage(), required_storage_in_bytes).as_bytes());
 
 
-            if !is_repaid && ! is_delayed {
+            if !is_repaid.clone() && ! is_delayed.clone() {
                 refund_deposit(required_storage_in_bytes);
             }
         } else {
@@ -269,7 +265,6 @@ impl Contract {
     pub fn transfer_deposit_for_nft(&mut self, token_id: TokenId) {
         let lender_id = &env::predecessor_account_id();
         let seller_id = self.nft_locker_by_token_id.get(&token_id).unwrap();
-        // TODO: maybe но я не уверен: бабки на сторадж (0.1 NEAR)
         assert_ne!(lender_id.to_string(), seller_id.to_string());
         env::log(format!("Seller: {}", seller_id).as_bytes());
         env::log(format!("TokeID: {}", token_id).as_bytes());
@@ -341,8 +336,6 @@ impl Contract {
 
     #[payable]
     pub fn repaid_loan(&mut self, token_id: TokenId) {
-        // deposit from js is Amount * apr / 100
-        // TODO: возможно здесь тоже надо пересчитывать сторадж но я не уверен (типа депозит = сколько вернуть + бабки на сторадж (0.1 NEAR))
         let deposit = env::attached_deposit();
         let owner_id = &env::predecessor_account_id();
 
@@ -393,7 +386,7 @@ impl Contract {
             let now = Duration::from_nanos(env::block_timestamp());
             let deal_time = Duration::from_nanos(token.start_time.unwrap());
 
-            let diff = (now - deal_time);
+            let diff = now - deal_time;
             let sec_diff = diff.as_secs();
 
             if sec_diff >= token.duration {
@@ -408,22 +401,6 @@ impl Contract {
         }
     }
 
-    pub fn get_lend_tokens(&self, account_id: AccountId) -> Vec<JsonLockedToken> {
-        let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
-
-        let mut result = vec![];
-        for locked_token in credit_tokens.iter() {
-            let token_id = locked_token.token_id.clone();
-            result.push(
-                JsonLockedToken {
-                    json_token: self.nft_token(token_id).unwrap(),
-                    locked_token: locked_token.clone(),
-                }
-            )
-        }
-
-        return result;
-    }
 
     fn measure_min_token_storage_cost(&mut self) {
         let initial_storage_usage = env::storage_usage();
@@ -492,7 +469,6 @@ impl Contract {
             owner_id: CONTRACT_NAME.to_string(),
             extra_storage_in_bytes_per_token: 0,
             metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
-            users_val: HashMap::new(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
