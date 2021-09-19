@@ -133,15 +133,15 @@ impl Contract {
         //let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
 
         let mut result = vec![];
-//        for locked_token in credit_tokens.iter() {
-//            let token_id = locked_token.token_id.clone();
-//            result.push(
-//                JsonLockedToken {
-//                    json_token: self.nft_token(token_id).unwrap(),
-//                    locked_token: locked_token.clone(),
-//                }
-//            )
-        //       }
+       for locked_token in credit_tokens.iter() {
+           let token_id = locked_token.token_id.clone();
+           result.push(
+               JsonLockedToken {
+                   json_token: self.nft_token(token_id).unwrap(),
+                   locked_token: locked_token.clone(),
+               }
+           )
+        }
 
         result
     }
