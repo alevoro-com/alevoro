@@ -1,7 +1,2 @@
-Alevoro
-=================================
-
-## Description
-
-p2p marketplace for NFT collateralised loans
+DEMO: [https://alevoro-com.github.io](https://alevoro-com.github.io)
 
