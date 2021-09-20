@@ -112,7 +112,7 @@ impl Contract {
     pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
-        need_all: bool
+        need_all: bool,
     ) -> Vec<JsonLockedToken> {
         let mut locked_tokens_jsons = vec![];
         let locked_tokens = self.get_locked_instances(account_id, need_all);
@@ -120,7 +120,7 @@ impl Contract {
             let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
             locked_tokens_jsons.push(JsonLockedToken {
                 json_token: json_token,
-                locked_token: locked_token.clone()
+                locked_token: locked_token.clone(),
             });
         }
         locked_tokens_jsons
@@ -128,19 +128,19 @@ impl Contract {
 
     pub fn get_debtors_tokens(
         &self,
-        account_id: AccountId
+        account_id: AccountId,
     ) -> Vec<JsonLockedToken> {
-        //let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
+        let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
 
         let mut result = vec![];
-       for locked_token in credit_tokens.iter() {
-           let token_id = locked_token.token_id.clone();
-           result.push(
-               JsonLockedToken {
-                   json_token: self.nft_token(token_id).unwrap(),
-                   locked_token: locked_token.clone(),
-               }
-           )
+        for locked_token in credit_tokens.iter() {
+            let token_id = locked_token.token_id.clone();
+            result.push(
+                JsonLockedToken {
+                    json_token: self.nft_token(token_id).unwrap(),
+                    locked_token: locked_token.clone(),
+                }
+            )
         }
 
         result
@@ -150,8 +150,8 @@ impl Contract {
     fn get_locked_instances(
         &self,
         account_id: AccountId,
-        need_all: bool
-    )-> Vec<LockedToken> {
+        need_all: bool,
+    ) -> Vec<LockedToken> {
         let mut tmp = vec![];
         let tokens_owner = self.tokens_stored_per_owner.get(&account_id);
         let tokens = if let Some(tokens_owner) = tokens_owner {
@@ -253,7 +253,7 @@ impl Contract {
             env::log(format!("Was {}. Now: {}. Required: {}.", initial_storage_usage, env::storage_usage(), required_storage_in_bytes).as_bytes());
 
 
-            if !is_repaid.clone() && ! is_delayed.clone() {
+            if !is_repaid.clone() && !is_delayed.clone() {
                 refund_deposit(required_storage_in_bytes);
             }
         } else {
@@ -395,7 +395,6 @@ impl Contract {
             } else {
                 env::panic(format!("It is still {} seconds left for lender to return money.", sec_diff).as_bytes());
             }
-
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
         }
