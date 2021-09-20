@@ -39,14 +39,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "alevoro"
-version = "0.1.0"
-dependencies = [
- "near-sdk",
- "near-sdk-sim",
-]
-
-[[package]]
 name = "anyhow"
 version = "1.0.41"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2373,6 +2365,14 @@ checksum = "23d83c02c429044d58474eaf5ae31e062d0de894e21125b47437ec0edc1397e6"
 dependencies = [
  "libc",
  "librocksdb-sys",
+]
+
+[[package]]
+name = "rust-counter-tutorial"
+version = "0.1.0"
+dependencies = [
+ "near-sdk",
+ "near-sdk-sim",
 ]
 
 [[package]]

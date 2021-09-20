@@ -58,6 +58,7 @@ function updateUI() {
         document.querySelector('.my-account').style.display = 'none';
         document.querySelector('.my-karma').style.display = 'none';
         document.querySelector('.login').innerHTML = "sign in";
+        document.querySelector(".gallery").innerHTML = "";
     } else {
         document.querySelector('.alert').style.display = 'none';
         let myAcc = document.querySelector('.my-account');
@@ -68,61 +69,51 @@ function updateUI() {
         myKarma.innerHTML = "Karma: 100";
 
         document.querySelector('.login').innerHTML = "sign out";
-        document.getElementsByClassName("gallery")[0].innerHTML = "";
+        document.querySelector(".gallery").innerHTML = "";
 
         contract.nft_tokens_for_owner({
             account_id: window.walletConnection.getAccountId(),
             from_index: '0',
             limit: '50'
         }).then(res => {
-            const nfts = getNFTsInfo(res, false);
-            addLoadedNfts(nfts,false);
-            if (navigatorState === "MyNFTs") {
-                showGallery(nfts, false);
-            }
+            initNFTs(res, false, "MyNFTs");
         });
 
         contract.get_locked_tokens({
             account_id: window.walletConnection.getAccountId(),
             need_all: true
         }).then(res => {
-            const nfts = getNFTsInfo(res, true);
-            addLoadedNfts(nfts, false);
-            if (navigatorState === "MyNFTs") {
-                showGallery(nfts, false);
-            }
+            initNFTs(res, true, "MyNFTs");
         });
 
         contract.get_all_locked_tokens({}).then(res => {
-            const nfts = getNFTsInfo(res, true);
-            addLoadedNfts(nfts, true);
-            if (navigatorState === "Market") {
-                showGallery(nfts, true);
-            }
+            initNFTs(res, true, "Market");
         });
 
 
-        // contract.get_debtors_tokens({
-        //     account_id: window.walletConnection.getAccountId()
-        // }).then(res => {
-        //     const nfts = getNFTsInfo(res, true);
-        //     if (navigatorState === "MyLoans") {
-        //         if (nfts.length === 0){
-        //             const alertMsg = "You have no debtors";
-        //             document.querySelector(".gallery").innerHTML = "<p class=\'alert\'>" + alertMsg + "</p>";
-        //         } else {
-        //             showGallery(nfts, false);
-        //         }
-        //     }
-        // });
+        contract.get_debtors_tokens({
+            account_id: window.walletConnection.getAccountId()
+        }).then(res => {
+            initNFTs(res, true, "MyLoans");
+        });
 
     }
 }
 
-function addLoadedNfts(nfts, isMarket){
+function initNFTs(res, isLocked, PAGE) {
+    const nfts = getNFTsInfo(res, isLocked);
+    addLoadedNfts(nfts, PAGE);
+    if (navigatorState === PAGE) {
+        showGallery(nfts, PAGE);
+    }
+}
+
+function addLoadedNfts(nfts, curPage){
     for (let nft of nfts){
-        if (isMarket) {
+        if (curPage === "Market") {
             marketNfts[nft.token_id] = nft;
+        } else if (curPage === "MyLoans") {
+            myLoanNFTs[nft.token_id] = nft;
         } else {
             allNfts[nft.token_id] = nft;
         }
@@ -130,35 +121,32 @@ function addLoadedNfts(nfts, isMarket){
 }
 
 
-function showGallery(nfts, isMarket) {
+function showGallery(nfts, nftState) {
     for (let i = 0; i < nfts.length; i++) {
-        if (isMarket) {
-            marketNfts[nfts[i].token_id] = nfts[i];
-        } else {
-            allNfts[nfts[i].token_id] = nfts[i];
-        }
-        document.querySelector(".gallery").innerHTML += showNFT(nfts[i], isMarket);
+        document.querySelector(".gallery").innerHTML += showNFT(nfts[i], nftState);
     }
     if (nfts.length > 0) {
         $('.container_image').off('click').click(function () {
-            showModalNft(this.id, isMarket)
+            showModalNft(this.id, nftState)
         });
     }
 }
 
-function showModalNft(id, isMarket) {
+function showModalNft(id, nftState) {
     modalNFT.style.display = "block";
     let nft;
-    if (isMarket) {
+    if (nftState === 'Market') {
         nft = marketNfts[id];
+    } else if (nftState === 'MyLoans') {
+        nft = myLoanNFTs[id];
     } else {
         nft = allNfts[id];
     }
     let deposit = parseNearAmount('0.1');
     const lockedBlock = document.getElementById('modal-back-block');
     const borrowBlock = document.getElementById('modal-borrow-block');
+    document.querySelector('.modal-main-btn').style.display = 'inline';
     if (nft.isLocked) {
-        document.querySelector('.title-modal-nft').innerHTML = "Return";
         lockedBlock.style.display = 'block';
         borrowBlock.style.display = 'none';
 
@@ -179,17 +167,36 @@ function showModalNft(id, isMarket) {
             console.log(multiplier);
             deposit = parseNearAmount((Number.parseFloat(formatNearAmount(nft.borrowed_money)) * multiplier).toString());
             console.log(deposit);
-            $('.modal-main-btn').off('click').click(function () {
-                contract.repaid_loan({token_id: id}, GAS, deposit.toString()).then(updateUI);
-            });
+            if (nftState === 'MyLoans') {
+                document.querySelector('.title-modal-nft').innerHTML = "Debtor";
+                if (timeLeft > 0) {
+                    document.querySelector('.modal-main-btn').style.display = 'none';
+                } else {
+                    document.querySelector('.modal-main-btn').innerHTML = "Claim NFT";
+                    $('.modal-main-btn').off('click').click(function () {
+                        document.querySelector('.modal-main-btn').style.display = 'none';
+                        contract.check_transfer_overdue_nft_to_creditor({token_id: id}).then(goToNFTsAndUpdate);
+                    });
+                }
+            } else {
+                document.querySelector('.title-modal-nft').innerHTML = "Repay";
+                $('.modal-main-btn').off('click').click(function () {
+                    contract.repaid_loan({token_id: id}, GAS, deposit.toString()).then(updateUI);
+                });
+            }
         } else {
             document.querySelector('.confirmed').style.display = 'none';
-            if (isMarket){
-                document.querySelector('.title-modal-nft').innerHTML = "Lend";
-                document.querySelector('.modal-main-btn').innerHTML = "Lend";
-                $('.modal-main-btn').off('click').click(function () {
-                    contract.transfer_deposit_for_nft({token_id: nft.token_id}, GAS, nft.borrowed_money).then(updateUI);
-                });
+            if (nftState === 'Market'){
+                if (window.walletConnection.getAccountId() === nft.real_owner) {
+                    document.querySelector('.title-modal-nft').innerHTML = "Your NFT";
+                    document.querySelector('.modal-main-btn').style.display = 'none';
+                } else {
+                    document.querySelector('.title-modal-nft').innerHTML = "Lend";
+                    document.querySelector('.modal-main-btn').innerHTML = "Lend";
+                    $('.modal-main-btn').off('click').click(function () {
+                        contract.transfer_deposit_for_nft({token_id: nft.token_id}, GAS, nft.borrowed_money).then(updateUI);
+                    });
+                }
             } else {
                 document.querySelector('.title-modal-nft').innerHTML = "Return";
                 document.querySelector('.modal-main-btn').innerHTML = "Return NFT";
@@ -219,19 +226,16 @@ function showModalNft(id, isMarket) {
 }
 
 function changeNavigatorState(newState){
-    // if (window.walletConnection.getAccountId()) {
-    //     if (navigatorState !== newState) {
-    //         navigatorState = newState;
-    //         updateUI()
-    //     }
-    // } else if (navigatorState !== 'Market'){
-    //
-    // }
     if (navigatorState !== newState) {
         document.querySelector('.'+navigatorState.toLowerCase()+'-btn').style.textDecoration = "none";
         navigatorState = newState;
         updateUI()
     }
+}
+
+function goToNFTsAndUpdate(){
+    modalNFT.style.display = "none";
+    changeNavigatorState("MyNFTs");
 }
 
 
@@ -247,11 +251,6 @@ function getMetadata(title, media) {
 
 let modalMint = document.getElementById("mintModal");
 let modalNFT = document.getElementById("nftModal");
-
-
-// document.querySelector('.check-overdue').addEventListener("click", function () {
-//     contract.check_transfer_overdue_nft_to_creditor({token_id: "token-1631987533962"}).then(updateUI);
-// });
 
 
 document.querySelector('.closeMint').addEventListener("click", function () {

@@ -34,10 +34,10 @@ function getNFTsInfo(res, isLocked) {
 }
 
 
-function showNFT(nft, isMarket) {
+function showNFT(nft, nftState) {
     const divInfo = `class=\"container_image\" id=\"${nft.token_id}\"`;
     let bottomText = nft.owner;
-    if (isMarket) {
+    if (nftState === 'Market' || nftState === 'MyLoans') {
         bottomText = nft.real_owner;
     } else if (nft.isLocked) {
         if (nft.is_confirmed) {
