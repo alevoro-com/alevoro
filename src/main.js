@@ -1,7 +1,7 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
 import getConfig from "./config";
-import {getNFTsInfo, showNFT} from "./nft-utils.js"
+import {getNFTsInfo, showNFT} from "./nft-utils.js";
 
 const nearConfig = getConfig(process.env.NODE_ENV || "development");
 
@@ -51,16 +51,16 @@ async function connect(nearConfig) {
 function updateUI() {
     console.log("update UI");
 
-    document.querySelector('.'+navigatorState.toLowerCase()+'-btn').style.textDecoration = "underline";
+    document.querySelector('.' + navigatorState.toLowerCase() + '-btn').style.textDecoration = "underline";
+    document.querySelector('.gallery-alert').style.display = 'block';
+    document.querySelector('.alert').innerHTML = "";
     if (!window.walletConnection.getAccountId()) {
-        document.querySelector('.alert').style.display = 'block';
-        document.querySelector('.login').innerHTML = "Please, sign in";
+        document.querySelector('.alert').innerHTML = "Please, sign in";
         document.querySelector('.my-account').style.display = 'none';
         document.querySelector('.my-karma').style.display = 'none';
         document.querySelector('.login').innerHTML = "sign in";
         document.querySelector(".gallery").innerHTML = "";
     } else {
-        document.querySelector('.alert').style.display = 'none';
         let myAcc = document.querySelector('.my-account');
         let myKarma = document.querySelector('.my-karma');
         myAcc.style.display = 'block';
@@ -97,6 +97,10 @@ function updateUI() {
             initNFTs(res, true, "MyLoans");
         });
 
+        setTimeout(function () {
+            document.querySelector('.alert').innerHTML = getAlertPhrase();
+        }, 1000);
+
     }
 }
 
@@ -104,12 +108,15 @@ function initNFTs(res, isLocked, PAGE) {
     const nfts = getNFTsInfo(res, isLocked);
     addLoadedNfts(nfts, PAGE);
     if (navigatorState === PAGE) {
+        if (nfts.length > 0){
+            document.querySelector('.gallery-alert').style.display = 'none';
+        }
         showGallery(nfts, PAGE);
     }
 }
 
-function addLoadedNfts(nfts, curPage){
-    for (let nft of nfts){
+function addLoadedNfts(nfts, curPage) {
+    for (let nft of nfts) {
         if (curPage === "Market") {
             marketNfts[nft.token_id] = nft;
         } else if (curPage === "MyLoans") {
@@ -118,6 +125,19 @@ function addLoadedNfts(nfts, curPage){
             allNfts[nft.token_id] = nft;
         }
     }
+}
+
+function getAlertPhrase(){
+    if (navigatorState === 'Market'){
+        return 'Market is empty'
+    }
+    if (navigatorState === 'MyNFTs'){
+        return "You don't have any NFTs"
+    }
+    if (navigatorState === 'MyLoans'){
+        return "You don't have any debtors"
+    }
+    return ""
 }
 
 
@@ -158,20 +178,26 @@ function showModalNft(id, nftState) {
             document.querySelector('.modal-main-btn').innerHTML = "Repaid loan";
             document.querySelector('.creditor').innerHTML = nft.creditor;
             let curTime = Math.round(new Date().getTime() / 1000);
-            console.log(curTime - Number.parseInt((nft.start_time).toString().slice(0,10)));
-            let timeLeft = Number.parseInt(nft.duration) - (curTime - Number.parseInt((nft.start_time).toString().slice(0,10)));
-            document.querySelector('.time-left').innerHTML = timeLeft > 0 ? timeLeft: "Time is over";
+            let timeLeft = Number.parseInt(nft.duration) - (curTime - Number.parseInt((nft.start_time).toString().slice(0, 10)));
 
-            console.log(nft.borrowed_money, nft.apr);
             let multiplier = 1 + (Number.parseInt(nft.apr) / 100);
-            console.log(multiplier);
             deposit = parseNearAmount((Number.parseFloat(formatNearAmount(nft.borrowed_money)) * multiplier).toString());
-            console.log(deposit);
             if (nftState === 'MyLoans') {
                 document.querySelector('.title-modal-nft').innerHTML = "Debtor";
                 if (timeLeft > 0) {
+                    showTimer(timeLeft, function () {
+                        if (navigatorState === 'MyLoans') {
+                            document.querySelector('.modal-main-btn').style.display = 'inline';
+                            document.querySelector('.modal-main-btn').innerHTML = "Claim NFT";
+                            $('.modal-main-btn').off('click').click(function () {
+                                document.querySelector('.modal-main-btn').style.display = 'none';
+                                contract.check_transfer_overdue_nft_to_creditor({token_id: id}).then(goToNFTsAndUpdate);
+                            });
+                        }
+                    });
                     document.querySelector('.modal-main-btn').style.display = 'none';
                 } else {
+                    showTimer(timeLeft, () => {});
                     document.querySelector('.modal-main-btn').innerHTML = "Claim NFT";
                     $('.modal-main-btn').off('click').click(function () {
                         document.querySelector('.modal-main-btn').style.display = 'none';
@@ -180,13 +206,19 @@ function showModalNft(id, nftState) {
                 }
             } else {
                 document.querySelector('.title-modal-nft').innerHTML = "Repay";
+                showTimer(timeLeft, function () {
+                    if (navigatorState === 'MyNFTs') {
+                        document.querySelector('.modal-main-btn').style.display = 'none';
+                        document.querySelector('.title-modal-nft').innerHTML = "Lost NFT";
+                    }
+                });
                 $('.modal-main-btn').off('click').click(function () {
                     contract.repaid_loan({token_id: id}, GAS, deposit.toString()).then(updateUI);
                 });
             }
         } else {
             document.querySelector('.confirmed').style.display = 'none';
-            if (nftState === 'Market'){
+            if (nftState === 'Market') {
                 if (window.walletConnection.getAccountId() === nft.real_owner) {
                     document.querySelector('.title-modal-nft').innerHTML = "Your NFT";
                     document.querySelector('.modal-main-btn').style.display = 'none';
@@ -225,20 +257,47 @@ function showModalNft(id, nftState) {
     }
 }
 
-function changeNavigatorState(newState){
+function showTimer(secondsLeft, callback) {
+    calculate();
+    let timer = setInterval(calculate, 1000);
+
+    function calculate() {
+        function formatNumber(num) {
+            if (num / 10 < 1){
+                return '0' + num;
+            }
+            return num;
+
+        }
+        if (secondsLeft <= 0){
+            clearInterval(timer);
+            document.querySelector('.timer').innerHTML = 'Time is over';
+            callback();
+            return
+        }
+        const seconds = formatNumber(secondsLeft % 60);
+        const minutes = formatNumber(Math.floor(secondsLeft / 60) % 60);
+        const hours = formatNumber(Math.floor(secondsLeft / (60 * 60)) % 60);
+        const days = Math.floor(secondsLeft / (60 * 60 * 24)) % 60;
+
+        document.querySelector('.timer').innerHTML = `${days} days, ${hours}:${minutes}:${seconds}`;
+
+        secondsLeft -= 1;
+    }
+}
+
+function changeNavigatorState(newState) {
     if (navigatorState !== newState) {
-        document.querySelector('.'+navigatorState.toLowerCase()+'-btn').style.textDecoration = "none";
+        document.querySelector('.' + navigatorState.toLowerCase() + '-btn').style.textDecoration = "none";
         navigatorState = newState;
         updateUI()
     }
 }
 
-function goToNFTsAndUpdate(){
+function goToNFTsAndUpdate() {
     modalNFT.style.display = "none";
     changeNavigatorState("MyNFTs");
 }
-
-
 
 
 function getMetadata(title, media) {

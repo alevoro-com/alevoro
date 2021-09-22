@@ -69,20 +69,35 @@
 }
 
 .gallery {
+    display: flex;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    flex-direction: row;
     background-color: black;
     height: 100%;
     margin-left: 10%;
     margin-right: 10%;
-    margin-top: 100px;
+    margin-top: 50px;
 }
 
+.gallery-alert {
+    margin-left: 10%;
+    margin-right: 10%;
+    background-color: black;
+
+    min-height: calc(70vh - 50px);
+}
+
+
 .alert {
-    margin: auto;
+    text-align: center;
+    padding-left: calc(50% - 200px);
+    padding-top: 100px;
     font-family: 'aharoni', serif;
-    width: 200px;
+    width: 400px;
     height: 100px;
     font-size: 2vh;
-    color: red;
+    color: darkred;
 }
 
 .nft {
@@ -122,35 +137,6 @@
     height: 100px;
     background: red;
 }
-
-
-
-/*#videoBG {*/
-/*    position:fixed;*/
-/*    z-index: -1;*/
-/*}*/
-/*@media (min-aspect-ratio: 16/9) {*/
-/*    #videoBG {*/
-/*        width:100%;*/
-/*        height: auto;*/
-/*    }*/
-/*}*/
-/*@media (max-aspect-ratio: 16/9) {*/
-/*    #videoBG {*/
-/*        width:auto;*/
-/*        height: 100%;*/
-/*    }*/
-/*}*/
-/*@media (max-width: 767px) {*/
-/*    #videoBG {*/
-/*        display: none;*/
-/*    }*/
-/*    body {*/
-/*        background: url('assets/static_bg.png');*/
-/*        background-size: cover;*/
-/*    }*/
-/*}*/
-
 
 /* The Modal (background) */
 .modal {
