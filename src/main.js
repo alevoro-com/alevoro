@@ -99,7 +99,7 @@ function updateUI() {
 
         setTimeout(function () {
             document.querySelector('.alert').innerHTML = getAlertPhrase();
-        }, 1000);
+        }, 700);
 
     }
 }
@@ -308,6 +308,11 @@ function getMetadata(title, media) {
     };
 }
 
+document.querySelector('.mint-url').addEventListener("input", function (e) {
+    document.querySelector('.container-mint-image').innerHTML =
+        "   <div class=\"mint-image\"><img class=\"container_image\" src=\"" + e.target.value + "\"\></div>\n";
+});
+
 let modalMint = document.getElementById("mintModal");
 let modalNFT = document.getElementById("nftModal");
 
@@ -320,7 +325,7 @@ document.querySelector('.closeNFT').addEventListener("click", function () {
     modalNFT.style.display = "none";
 });
 
-document.querySelector('.mint').addEventListener("click", function () {
+document.querySelector('.modal-mint-btn').addEventListener("click", function () {
     console.log("try mint");
     const title = document.getElementsByClassName("mint-title")[0].value;
     const url = document.getElementsByClassName("mint-url")[0].value;
@@ -339,6 +344,9 @@ document.querySelector('.mint').addEventListener("click", function () {
 });
 
 document.querySelector('.mint-btn').addEventListener("click", function () {
+    document.querySelector('.container-mint-image').innerHTML = "";
+    document.querySelector('.mint-url').value = '';
+    document.querySelector('.mint-title').value = '';
     modalMint.style.display = "block";
 });
 

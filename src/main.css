@@ -41,14 +41,6 @@
     padding:1%;
 }
 
-.btn {
-    cursor: pointer;
-}
-
-.btn:hover {
-    color: grey;
-}
-
 .bg {
     position: fixed;
     z-index: -10;
@@ -68,17 +60,22 @@
     min-height: 50%;
 }
 
+
 .gallery {
-    display: flex;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    flex-direction: row;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 400px);
+    grid-gap: 50px;
+    justify-content: space-around;
+
     background-color: black;
     height: 100%;
     margin-left: 10%;
     margin-right: 10%;
     margin-top: 50px;
+
+    padding: 30px;
 }
+
 
 .gallery-alert {
     margin-left: 10%;
@@ -88,6 +85,61 @@
     min-height: calc(70vh - 50px);
 }
 
+.mint-image {
+    margin: auto;
+    width: 400px;
+    height: 400px;
+    background-color: lightgrey;
+    border: 2px solid black;
+}
+
+.modal-btn {
+    cursor: pointer;
+    border: none;
+    font-size: 1vh;
+    font-family: 'aharoni', serif;
+    background-color: black;
+    color: white;
+    width: 150px;
+    height: 50px;
+    margin: 10px;
+}
+
+.modal-btn:hover {
+    background-color: white;
+    color: black;
+    border: 1px solid black;
+}
+
+.modal-btn:active {
+    width: 160px;
+    height: 40px;
+    margin-top: 15px;
+    margin-bottom: 15px;
+}
+
+
+.btn {
+    cursor: pointer;
+}
+
+.btn:hover {
+    color: grey;
+}
+
+
+
+@media screen and (max-width: 1100px)  {
+    .site-title {
+        margin-top: 150px;
+    }
+
+    .mint-image {
+        width: 300px;
+        height: 300px;
+    }
+
+}
 
 .alert {
     text-align: center;
@@ -101,8 +153,6 @@
 }
 
 .nft {
-    display: inline-block;
-
     width: 400px;
     height: 500px;
 
@@ -110,7 +160,6 @@
     border: 2px solid grey;
 
     text-align: center;
-    margin: 20px;
 
 }
 
