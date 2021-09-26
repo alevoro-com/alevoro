@@ -19,6 +19,11 @@ let allNfts = {};
 let marketNfts = {};
 let myLoanNFTs = {};
 let navigatorState = "Market";
+let timer;
+
+const SEC_IN_MIN = 60;
+const SEC_IN_HOUR = 60 * SEC_IN_MIN;
+const SEC_IN_DAY = 24 * SEC_IN_HOUR;
 
 async function connect(nearConfig) {
     // Connects to NEAR and provides `near`, `walletAccount` and `contract` objects in `window` scope
@@ -171,7 +176,8 @@ function showModalNft(id, nftState) {
         borrowBlock.style.display = 'none';
 
         document.querySelector('.apr').innerHTML = nft.apr;
-        document.querySelector('.duration').innerHTML = nft.duration;
+        const curDur = secondsToTime(nft.duration);
+        document.querySelector('.duration').innerHTML = `${curDur[0]} days, ${curDur[1]}:${curDur[2]}:${curDur[3]}`;
         document.querySelector('.amount').innerHTML = formatNearAmount(nft.borrowed_money);
         if (nft.is_confirmed) {
             document.querySelector('.confirmed').style.display = 'block';
@@ -244,12 +250,14 @@ function showModalNft(id, nftState) {
         borrowBlock.style.display = 'block';
         $('.modal-main-btn').off('click').click(function () {
             const amount = parseNearAmount(document.querySelector(".input-amount").value);
-            console.log(amount);
-            const days = Number.parseInt(document.querySelector(".input-duration").value);
             const apr = Number.parseInt(document.querySelector(".input-apr").value);
+            const days = Number.parseInt(document.querySelector(".input-days").value);
+            const hours = Number.parseInt(document.querySelector(".input-hours").value);
+            const minutes = Number.parseInt(document.querySelector(".input-minutes").value);
+            const seconds = days * SEC_IN_DAY + hours * SEC_IN_HOUR + minutes * SEC_IN_MIN;
 
-            if (amount && days && apr) {
-                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: days};
+            if (amount && seconds && apr) {
+                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: seconds};
                 contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
                 modalNFT.style.display = "none";
             }
@@ -257,30 +265,35 @@ function showModalNft(id, nftState) {
     }
 }
 
+function secondsToTime(secondsLeft) {
+    function formatNumber(num) {
+        if (num / 10 < 1){
+            return '0' + num;
+        }
+        return num;
+
+    }
+    const seconds = formatNumber(secondsLeft % 60);
+    const minutes = formatNumber(Math.floor(secondsLeft / SEC_IN_MIN) % 60);
+    const hours = formatNumber(Math.floor(secondsLeft / SEC_IN_HOUR) % 60);
+    const days = Math.floor(secondsLeft / (SEC_IN_DAY)) % 60;
+    return [days, hours, minutes, seconds]
+}
+
 function showTimer(secondsLeft, callback) {
     calculate();
-    let timer = setInterval(calculate, 1000);
+    timer = setInterval(calculate, 1000);
 
     function calculate() {
-        function formatNumber(num) {
-            if (num / 10 < 1){
-                return '0' + num;
-            }
-            return num;
-
-        }
         if (secondsLeft <= 0){
             clearInterval(timer);
             document.querySelector('.timer').innerHTML = 'Time is over';
             callback();
             return
         }
-        const seconds = formatNumber(secondsLeft % 60);
-        const minutes = formatNumber(Math.floor(secondsLeft / 60) % 60);
-        const hours = formatNumber(Math.floor(secondsLeft / (60 * 60)) % 60);
-        const days = Math.floor(secondsLeft / (60 * 60 * 24)) % 60;
 
-        document.querySelector('.timer').innerHTML = `${days} days, ${hours}:${minutes}:${seconds}`;
+        const curTime = secondsToTime(secondsLeft);
+        document.querySelector('.timer').innerHTML = `${curTime[0]} days, ${curTime[1]}:${curTime[2]}:${curTime[3]}`;
 
         secondsLeft -= 1;
     }
@@ -319,11 +332,24 @@ let modalNFT = document.getElementById("nftModal");
 
 document.querySelector('.closeMint').addEventListener("click", function () {
     modalMint.style.display = "none";
+
+    $("#mint-content-id").removeClass("modal-content");
+    setTimeout(function(){
+        $("#mint-content-id").addClass("modal-content");
+    },1 )
+
 });
 
 document.querySelector('.closeNFT').addEventListener("click", function () {
     modalNFT.style.display = "none";
+    clearInterval(timer);
+
+    $("#nft-content-id").removeClass("modal-content");
+    setTimeout(function(){
+        $("#nft-content-id").addClass("modal-content");
+    },1 )
 });
+
 
 document.querySelector('.modal-mint-btn').addEventListener("click", function () {
     console.log("try mint");
@@ -350,7 +376,6 @@ document.querySelector('.mint-btn').addEventListener("click", function () {
     modalMint.style.display = "block";
 });
 
-
 document.querySelector('.market-btn').addEventListener("click", function () {
     changeNavigatorState("Market");
 });
@@ -361,6 +386,18 @@ document.querySelector('.mynfts-btn').addEventListener("click", function () {
 
 document.querySelector('.myloans-btn').addEventListener("click", function () {
     changeNavigatorState("MyLoans");
+});
+
+document.querySelector('.input-days').addEventListener("input", function() {
+    document.querySelector('.output-days').innerHTML = this.value;
+});
+
+document.querySelector('.input-hours').addEventListener("input", function() {
+    document.querySelector('.output-hours').innerHTML = this.value;
+});
+
+document.querySelector('.input-minutes').addEventListener("input", function() {
+    document.querySelector('.output-minutes').innerHTML = this.value;
 });
 
 

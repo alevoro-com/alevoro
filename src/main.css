@@ -96,7 +96,7 @@
 .modal-btn {
     cursor: pointer;
     border: none;
-    font-size: 1vh;
+    font-size: 1.5vh;
     font-family: 'aharoni', serif;
     background-color: black;
     color: white;
@@ -116,6 +116,17 @@
     height: 30px;
     margin-top: 15px;
     margin-bottom: 15px;
+}
+
+.modal-input {
+    outline: none;
+    border: 1px solid black;
+    background-color: white;
+    border-radius: 4px;
+}
+
+.modal-input:focus {
+    background-color: rgba(211, 211, 211, 0.12);
 }
 
 
@@ -217,6 +228,7 @@
     height: 100px;
     background: red;
 }
+
 
 /* The Modal (background) */
 .modal {
