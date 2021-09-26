@@ -33,7 +33,7 @@
 
   <!--  MODALS  -->
   <div id="mintModal" class="modal">
-    <div class="modal-content">
+    <div id="mint-content-id" class="modal-content">
       <div class="modal-header">
         <span class="close closeMint">&times;</span>
         <h2>Mint NFT</h2>
@@ -45,20 +45,26 @@
     </div>
   </div>
   <div id="nftModal" class="modal">
-    <div class="modal-content">
+    <div id="nft-content-id" class="modal-content">
       <div class="modal-header">
         <span class="close closeNFT">&times;</span>
         <h2 class="title-modal-nft"></h2>
       </div>
       <div id="modal-borrow-block">
         <p>Customize the parameters and put your NFT asset up as collateral for a loan</p>
-        <p>Amount(NEAR): <input class="modal-input input-amount" type="number" value="100" name="amount" min="1" max="100000"></p>
-        <p>Time(sec): <input class="modal-input input-duration" type="number" name="duration" value="60" min="30" max="10000000"></p>
+        <p>Amount Ⓝ: <input class="modal-input input-amount" type="number" value="100" name="amount" min="1" max="100000"></p>
         <p>APR: <input class="modal-input input-apr" type="number"name="apr" value="30" min="1" max="10000"></p>
+        <p>Duration:  </p>
+        <p><input class="input-days slider" type="range" min="0" max="366" value="0" step="1"></p>
+        <p><b class="output-days">0</b>&nbsp;days</p>
+        <p><input class="input-hours slider" type="range" min="0" max="23" value="0" step="1"></p>
+        <p><b class="output-hours">0</b>&nbsp;hours</p>
+        <p><input class="input-minutes slider" type="range" min="0" max="59" value="0" step="1"></p>
+        <p><b class="output-minutes">0</b>&nbsp;minutes</p>
       </div>
       <div id="modal-back-block">
-        <p>Amount(NEAR): <b class="amount">-</b></p>
-        <p>Time(sec): <b class="duration">-</b></p>
+        <p>Amount: <b class="amount">-</b><b> Ⓝ</b></p>
+        <p>Duration: <b class="duration">-</b></p>
         <p>APR: <b class="apr">-</b></p>
         <div class="confirmed">
           <p>Creditor: <b class="creditor">-</b></p>
