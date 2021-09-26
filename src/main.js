@@ -99,7 +99,7 @@ function updateUI() {
 
         setTimeout(function () {
             document.querySelector('.alert').innerHTML = getAlertPhrase();
-        }, 700);
+        }, 500);
 
     }
 }
