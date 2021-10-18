@@ -3,78 +3,11 @@
 <head>
   <meta charset="utf-8">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <link rel="stylesheet" href="./main.css">
+  <link rel="stylesheet" href="main_old.css">
 </head>
 <body>
-<!--  <video id="videoBG" poster="assets/static_bg.png" autoplay muted loop>-->
-<!--    <source src="assets/1.mp4" type="video/mp4">-->
-<!--  </video>-->
-  <div class="bg">
-    <img class="bg__image" src="assets/bg.jpg" alt="">
-  </div>
-  <h1 class="site-title">alevoro.</h1>
-  <h2 class="page-title">Profile</h2>
-  <!--  LOGIN  -->
-  <div class="login-container">
-      <p class="my-account"></p>
-      <p class="my-karma"></p>
-      <p class="btn login" >Sign In</p>
-  </div>
-  <div class="navigator-container">
-    <b class="btn navigator market-btn">Market</b><b class="navigator">|</b>
-    <b class="btn navigator mint-btn">Mint</b><b class="navigator">|</b>
-    <b class="btn navigator mynfts-btn">My NFTs</b><b class="navigator">|</b>
-    <b class="btn navigator myloans-btn">My loans</b>
-  </div>
-
-  <div class="gallery"></div>
-  <div class="gallery-alert"><div class="alert">Please, sign in</div></div>
-
-
-  <!--  MODALS  -->
-  <div id="mintModal" class="modal">
-    <div id="mint-content-id" class="modal-content">
-      <div class="modal-header">
-        <span class="close closeMint">&times;</span>
-        <h2>Mint NFT</h2>
-      </div>
-        <p>Title: <input class="modal-input mint-title" name="title"></p>
-        <p>URL: <input class="modal-input mint-url" name="url"></p>
-        <div class="container-mint-image"></div>
-        <button class="modal-btn modal-mint-btn" >Mint</button>
-    </div>
-  </div>
-  <div id="nftModal" class="modal">
-    <div id="nft-content-id" class="modal-content">
-      <div class="modal-header">
-        <span class="close closeNFT">&times;</span>
-        <h2 class="title-modal-nft"></h2>
-      </div>
-      <div id="modal-borrow-block">
-        <p>Customize the parameters and put your NFT asset up as collateral for a loan</p>
-        <p>Amount Ⓝ: <input class="modal-input input-amount" type="number" value="100" name="amount" min="1" max="100000"></p>
-        <p>APR: <input class="modal-input input-apr" type="number"name="apr" value="30" min="1" max="10000"></p>
-        <p>Duration:  </p>
-        <p><input class="input-days slider" type="range" min="0" max="366" value="0" step="1"></p>
-        <p><b class="output-days">0</b>&nbsp;days</p>
-        <p><input class="input-hours slider" type="range" min="0" max="23" value="0" step="1"></p>
-        <p><b class="output-hours">0</b>&nbsp;hours</p>
-        <p><input class="input-minutes slider" type="range" min="0" max="59" value="0" step="1"></p>
-        <p><b class="output-minutes">0</b>&nbsp;minutes</p>
-      </div>
-      <div id="modal-back-block">
-        <p>Amount: <b class="amount">-</b><b> Ⓝ</b></p>
-        <p>Duration: <b class="duration">-</b></p>
-        <p>APR: <b class="apr">-</b></p>
-        <div class="confirmed">
-          <p>Creditor: <b class="creditor">-</b></p>
-          <p>Time left: <b class="timer">-</b></p>
-        </div>
-      </div>
-      <button class="modal-btn modal-main-btn"></button>
-    </div>
-  </div>
-
+  <p class="account-name">-</p>
+  <button class="login">Sign In</button>
   <script src="./main.js"></script>
 </body>
 </html>
