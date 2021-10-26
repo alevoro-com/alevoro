@@ -1,50 +1,43 @@
-use std::collections::HashMap;
-use std::cmp::{min, max};
+use std::cmp::max;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64, U128};
+use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
+use near_sdk::json_types::ValidAccountId;
 use near_sdk::serde::{Deserialize, Serialize};
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, StorageUsage,
+    env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise, StorageUsage,
 };
 
-use crate::internal::*;
-pub use crate::metadata::*;
-pub use crate::mint::*;
-pub use crate::nft_core::*;
-pub use crate::token::*;
-pub use crate::enumerable::*;
+use near_contract_standards::non_fungible_token::{
+    refund_deposit, hash_account_id, TokenId
+};
+use near_contract_standards::non_fungible_token::metadata::{
+    TokenMetadata
+};
+
+use crate::nft_to_json_converter::*;
+use crate::callbacks::*;
+use crate::locked_token::*;
+use crate::nep_178_caller::*;
+
 use std::convert::TryFrom;
 use std::str::FromStr;
-use crate::locked_token::*;
 use std::time::Duration;
 
-mod internal;
-mod metadata;
-mod mint;
-mod nft_core;
-mod token;
-mod enumerable;
-mod locked_token;
+pub mod locked_token;
+pub mod nft_to_json_converter;
+pub mod callbacks;
+pub mod nep_178_caller;
 
 near_sdk::setup_alloc!();
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-
-    pub tokens_by_id: LookupMap<TokenId, Token>,
-
-    pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
-
     pub owner_id: AccountId,
 
     /// The storage size in bytes for one account.
     pub extra_storage_in_bytes_per_token: StorageUsage,
-
-    pub metadata: LazyOption<NFTMetadata>,
 
     pub tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
 
@@ -56,13 +49,6 @@ pub struct Contract {
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshSerialize)]
 pub enum StorageKey {
-    TokensPerOwner,
-    TokenPerOwnerInner { account_id_hash: CryptoHash },
-    TokensById,
-    TokenMetadataById,
-    NftMetadata,
-    TokensPerType,
-    TokensPerTypeInner { token_type_hash: CryptoHash },
     TokenTypesLocked,
     NFTsPerOwner,
     NFTsPerOwnerInner { account_id_hash: CryptoHash },
@@ -78,17 +64,8 @@ impl Contract {
     #[init]
     pub fn new(owner_id: ValidAccountId) -> Self {
         let mut this = Self {
-            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
-            token_metadata_by_id: UnorderedMap::new(
-                StorageKey::TokenMetadataById.try_to_vec().unwrap(),
-            ),
             owner_id: owner_id.into(),
             extra_storage_in_bytes_per_token: 0,
-            metadata: LazyOption::new(
-                StorageKey::NftMetadata.try_to_vec().unwrap(),
-                None,
-            ),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
             credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
@@ -117,7 +94,7 @@ impl Contract {
         let mut locked_tokens_jsons = vec![];
         let locked_tokens = self.get_locked_instances(account_id, need_all);
         for locked_token in locked_tokens.iter() {
-            let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
+            let json_token = self.nft_maybe_to_json(locked_token.token_id.clone()).unwrap().clone();
             locked_tokens_jsons.push(JsonLockedToken {
                 json_token: json_token,
                 locked_token: locked_token.clone(),
@@ -137,7 +114,7 @@ impl Contract {
             let token_id = locked_token.token_id.clone();
             result.push(
                 JsonLockedToken {
-                    json_token: self.nft_token(token_id).unwrap(),
+                    json_token: self.nft_maybe_to_json(token_id).unwrap(),
                     locked_token: locked_token.clone(),
                 }
             )
@@ -172,40 +149,31 @@ impl Contract {
     }
 
     #[payable]
-    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: String, apr: u64, borrow_duration: u64) {
+    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId,
+                                    borrowed_money: String,
+                                    apr: u64,
+                                    borrow_duration: u64,
+                                    market_id: String) {
+        env::log("CALLED APPROVTION".to_string().as_bytes());
         let account_id = &env::predecessor_account_id();
-        let initial_storage_usage = env::storage_usage() as i128;
         let token_id_cloned = token_id.clone();
 
-        self.nft_transfer(ValidAccountId::try_from(CONTRACT_NAME.to_string()).unwrap(), token_id, None, None);
-
-        let mut locked_tokens = self.get_tokens_stored_per_owner(&account_id);
-        locked_tokens.insert(&LockedToken {
-            token_id: token_id_cloned.clone(),
-            owner_id: account_id.clone(),
-            duration: borrow_duration,
-            borrowed_money,
-            apr,
-            creditor: None,
-            start_time: None,
-            is_confirmed: false,
-        });
-        self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
-        self.nft_locker_by_token_id.insert(&token_id_cloned, account_id);
-
-        let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
-
-        env::log(format!("Was {}. Now - was: {}.", initial_storage_usage, market_lock_size_in_bytes).as_bytes());
-
-        let required_storage_in_bytes =
-            ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
-
-        env::log(format!("Extra storage now: {}.", self.extra_storage_in_bytes_per_token).as_bytes());
-        env::log(format!("Required now: {}.", required_storage_in_bytes).as_bytes());
-
-        refund_deposit(required_storage_in_bytes);
-
-        env::log(format!("ADDED TOKEN ID: {}, SELLER: {}", token_id_cloned, self.nft_locker_by_token_id.get(&token_id_cloned).unwrap()).as_bytes())
+        marketplace_approver::nft_approve(token_id_cloned.clone(),
+                                          ValidAccountId::try_from(account_id.to_string())
+                                              .unwrap(),
+                                          None,
+                                          &ValidAccountId::try_from(market_id.to_string())
+                                              .unwrap(),
+                                          1000000,  // TODO: тут какие-то траблы сука жопа горит
+                                          25_000_000_000_000)
+            .then(ext_self_approve_receiver::nft_on_approve(token_id,
+                                                            borrowed_money,
+                                                            apr,
+                                                            borrow_duration,
+                                                            account_id.to_string(),
+                                                            &env::current_account_id(),
+                                                            1, // TODO: тут какие-то траблы сука жопа горит
+                                                            25_000_000_000_000));
     }
 
     #[payable]
@@ -230,7 +198,7 @@ impl Contract {
 
             self.tokens_stored_per_owner.insert(init_owner, &locked_tokens);
             self.nft_locker_by_token_id.remove(&token_id);
-            self.internal_transfer(&CONTRACT_NAME.to_string(), return_owner, &token_id, None, None);
+            // self.internal_transfer(&CONTRACT_NAME.to_string(), return_owner, &token_id, None, None);
 
             if is_repaid || is_delayed {
                 let creditor = token.creditor.unwrap();
@@ -351,8 +319,10 @@ impl Contract {
 
         if let Some(token) = token_exists_and_valid {
             env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
+            assert_eq!(&token.owner_id, owner_id);
 
             if token.is_confirmed {
+                assert!(!self.check_is_token_delayed(token.clone()));
                 let mut borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
                 borrowed_money += borrowed_money * u128::from(token.apr) / 100;
                 assert_eq!(deposit, borrowed_money);
@@ -371,9 +341,9 @@ impl Contract {
     }
 
     #[payable]
-    pub fn check_transfer_overdue_nft_to_creditor(&mut self, token_id: TokenId) {
-        let creditor_id = &env::predecessor_account_id();
-        let locked_tokens = self.get_tokens_for_borrowed_money(&creditor_id);
+    pub fn check_transfer_overdue_nft_to_creditor(&mut self, creditor_id: AccountId, token_id: TokenId) {
+        // let creditor_id = &env::predecessor_account_id();
+        let locked_tokens = self.get_tokens_for_borrowed_money(&&creditor_id.clone());
 
         let token_exists_and_valid = locked_tokens
             .iter()
@@ -383,34 +353,31 @@ impl Contract {
             assert_eq!(token.creditor.clone().unwrap().to_string(), creditor_id.to_string());
             assert!(token.is_confirmed);
 
-            let now = Duration::from_nanos(env::block_timestamp());
-            let deal_time = Duration::from_nanos(token.start_time.unwrap());
-
-            let diff = now - deal_time;
-            let sec_diff = diff.as_secs();
-
-            if sec_diff >= token.duration {
+            if self.check_is_token_delayed(token.clone()) {
                 self.transfer_nft_from_contract_to_return_owner(&&token.owner_id, &&token.creditor.unwrap(), token_id, false, true);
                 env::log(format!("Successfully transferred NFT from {} to {} by creditor request.", token.owner_id, env::predecessor_account_id()).as_bytes());
             } else {
-                env::panic(format!("It is still {} seconds left for lender to return money.", sec_diff).as_bytes());
+                env::panic(format!("There is still time for borrower to return money.").as_bytes());
             }
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
         }
     }
 
+    fn check_is_token_delayed(&self, token : LockedToken) -> bool {
+        let now = Duration::from_nanos(env::block_timestamp());
+        let deal_time = Duration::from_nanos(token.start_time.unwrap());
+
+        let diff = now - deal_time;
+        let sec_diff = diff.as_secs();
+
+        return sec_diff >= token.duration;
+    }
+
 
     fn measure_min_token_storage_cost(&mut self) {
         let initial_storage_usage = env::storage_usage();
         let tmp_account_id = "a".repeat(64);
-        let u = UnorderedSet::new(
-            StorageKey::TokenPerOwnerInner {
-                account_id_hash: hash_account_id(&tmp_account_id),
-            }
-                .try_to_vec()
-                .unwrap(),
-        );
         let locked_u = UnorderedSet::new(
             StorageKey::NFTsPerOwnerInner {
                 account_id_hash: hash_account_id(&tmp_account_id),
@@ -418,7 +385,6 @@ impl Contract {
                 .try_to_vec()
                 .unwrap(),
         );
-        self.tokens_per_owner.insert(&tmp_account_id, &u);
         self.tokens_stored_per_owner.insert(&tmp_account_id, &locked_u);
         self.credit_tokens_per_creditor.insert(&tmp_account_id, &locked_u);
 
@@ -429,7 +395,6 @@ impl Contract {
         self.extra_storage_in_bytes_per_token =
             tokens_per_owner_entry_in_bytes + owner_id_extra_cost_in_bytes;
 
-        self.tokens_per_owner.remove(&tmp_account_id);
         self.tokens_stored_per_owner.remove(&tmp_account_id);
         self.credit_tokens_per_creditor.remove(&tmp_account_id);
     }
@@ -451,8 +416,6 @@ impl Contract {
         //     /// The storage size in bytes for one account.
         //     pub extra_storage_in_bytes_per_token: StorageUsage,
 
-        //     pub metadata: LazyOption<NFTMetadata>,
-
         //     pub users_val: HashMap<AccountId, i8>,
 
         //     pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
@@ -462,12 +425,11 @@ impl Contract {
         // let state_1: Old = env::state_read().expect("Error");
 
         Self {
-            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
-            token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
+            // tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
+            // tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
+            // token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
             owner_id: CONTRACT_NAME.to_string(),
             extra_storage_in_bytes_per_token: 0,
-            metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),

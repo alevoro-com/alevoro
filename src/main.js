@@ -257,7 +257,12 @@ function showModalNft(id, nftState) {
             const seconds = days * SEC_IN_DAY + hours * SEC_IN_HOUR + minutes * SEC_IN_MIN;
 
             if (amount && seconds && apr) {
-                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: seconds};
+                const params = {
+                    token_id: id,
+                    borrowed_money: amount,
+                    apr: apr,
+                    borrow_duration: seconds,
+                    market_id: "abacabich.mintspace2.testnet"};
                 contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
                 modalNFT.style.display = "none";
             }
@@ -352,21 +357,31 @@ document.querySelector('.closeNFT').addEventListener("click", function () {
 
 
 document.querySelector('.modal-mint-btn').addEventListener("click", function () {
-    console.log("try mint");
-    const title = document.getElementsByClassName("mint-title")[0].value;
-    const url = document.getElementsByClassName("mint-url")[0].value;
+    // console.log("try mint");
+    // const title = document.getElementsByClassName("mint-title")[0].value;
+    // const url = document.getElementsByClassName("mint-url")[0].value;
+    //
+    // if (title && url) {
+    //     const deposit = parseNearAmount('0.1');
+    //     const metadata = getMetadata(title, url);
+    //     const royality = null;
+    //     contract.nft_mint({
+    //         token_id: 'token-' + Date.now(),
+    //         metadata,
+    //         royality
+    //     }, GAS, deposit).then(updateUI);
+    //     modalMint.style.display = "none";
+    // }
+    console.log("get approve")
+    let deposit = parseNearAmount('0.1');
+    const params = {
+        token_id: "0",
+        borrowed_money: "100",
+        apr: 10,
+        borrow_duration: 100000,
+        market_id: "blackboxart.mintspace2.testnet"};
 
-    if (title && url) {
-        const deposit = parseNearAmount('0.1');
-        const metadata = getMetadata(title, url);
-        const royality = null;
-        contract.nft_mint({
-            token_id: 'token-' + Date.now(),
-            metadata,
-            royality
-        }, GAS, deposit).then(updateUI);
-        modalMint.style.display = "none";
-    }
+    contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
 });
 
 document.querySelector('.mint-btn').addEventListener("click", function () {
