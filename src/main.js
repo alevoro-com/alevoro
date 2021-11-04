@@ -54,20 +54,19 @@ function updateUI() {
         document.querySelector('.login').innerHTML = "Sign out";
         document.querySelector('.account-name').innerHTML = window.walletConnection.getAccountId();
 
-        getAccountNFTs();
+        getAccountNFTs(window.walletConnection.getAccountId());
 
     }
 }
 
 
-async function getAccountNFTs() {
-    const wallet = window.walletConnection.getAccountId();
-    const contracts = await getNFTs(wallet);
+async function getAccountNFTs(ownerWallet) {
+    const contracts = await getNFTs(ownerWallet);
 
     let ptr = 0;
     const result = {index: {}, data: []};
     for (const contactId of contracts) {
-        const list = await viewAccountNFT(contactId, wallet);
+        const list = await viewAccountNFT(contactId, ownerWallet);
         if (!list || list.error || !list.length) continue;
         if (!result.index[contactId]) result.index[contactId] = {start: ptr, length: 0};
         for (let i = 0; i < list.length; i++) {

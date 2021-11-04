@@ -47,7 +47,7 @@ async function viewAccountNFT(contractId, accountId) {
                 urlData[url] = data;
                 if (urlPtr[url] === undefined) {
                     urlPtr[url] = result.length;
-                    result.push({contract: contractId, ...mintbaseCard(urlData[url], id), id: id})
+                    result.push({contract: contractId, ...mintbaseCard(urlData[url]), id: id})
                 } else {
                     const nid = result[urlPtr[url]].id + ',' + id;
                     result[urlPtr[url]] = {contract: contractId, ...mintbaseCard(urlData[url], nid), id: nid}
