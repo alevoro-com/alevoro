@@ -2,6 +2,7 @@ import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
 import getConfig from "./config";
 import {getNFTs, viewAccountNFT} from "./nft-view/nft-view";
+import {NFT} from "./classes";
 
 
 const nearConfig = getConfig(process.env.NODE_ENV || "development");
@@ -61,23 +62,18 @@ function updateUI() {
 
 
 async function getAccountNFTs(ownerWallet) {
+    let nfts = [];
     const contracts = await getNFTs(ownerWallet);
-
-    let ptr = 0;
-    const result = {index: {}, data: []};
     for (const contactId of contracts) {
         const list = await viewAccountNFT(contactId, ownerWallet);
         if (!list || list.error || !list.length) continue;
-        if (!result.index[contactId]) result.index[contactId] = {start: ptr, length: 0};
         for (let i = 0; i < list.length; i++) {
             if (!list[i] || list[i].error) continue;
-            result.index[contactId].length++;
-            ptr++;
-            result.data.push(list[i])
+            console.log(list[i]);
+            nfts.push(new NFT(list[i].title, list[i].owner_id, list[i].id, list[i].media, list[i].ref, list[i].type, false))
         }
     }
-    console.log("NFTS:");
-    console.log(result);
+
 }
 
 

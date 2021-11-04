@@ -6,7 +6,8 @@ const nearApi = require("near-api-js");
 
 async function getNFTs(accountId) {
     try {
-        const res = await fetch('https://helper.' + (accountId.substr(-5) === '.near' ? 'mainnet' : 'testnet') + '.near.org/account/' + accountId + '/likelyNFTs', {timeout: 30000});
+        const res = await fetch('https://helper.' + (accountId.substr(-5) === '.near' ? 'mainnet' : 'testnet')
+            + '.near.org/account/' + accountId + '/likelyNFTs', {timeout: 30000});
         if (res.status < 199 || res.status > 299) {
             return {error: res.statusText + ' (' + res.status + ')'}
         }
@@ -25,7 +26,7 @@ async function getNFTs(accountId) {
 
 async function viewAccountNFT(contractId, accountId) {
     try {
-        const result = [];
+        let result = [];
 
         const network = accountId.substr(-5) === '.near' ? 'mainnet' : 'testnet';
         const provider = new nearApi.providers.JsonRpcProvider('https://rpc.' + network + '.near.org');
@@ -38,21 +39,26 @@ async function viewAccountNFT(contractId, accountId) {
             limit: 100
         });
         if (list.error) return list;
-        const urlData = {}, urlPtr = {};
         for (const id of list) {
             const url = await account.viewFunction(contractId, 'nft_token_uri', {token_id: '' + id});
-            if (url && url.error) continue;
-            const data = urlData[url] ? urlData[url] : await getMintbase(url);
-            if (data && !data.error) {
-                urlData[url] = data;
-                if (urlPtr[url] === undefined) {
-                    urlPtr[url] = result.length;
-                    result.push({contract: contractId, ...mintbaseCard(urlData[url]), id: id})
-                } else {
-                    const nid = result[urlPtr[url]].id + ',' + id;
-                    result[urlPtr[url]] = {contract: contractId, ...mintbaseCard(urlData[url], nid), id: nid}
+            const data_specific = await getMintbase(url);
+            if (data_specific && !data_specific.error){
+                let cur_res = mintbaseCard(data_specific, true);
+                const data = await account.viewFunction(contractId, 'nft_token', {token_id: '' + id});
+                if (data) {
+                    const metadata = mintbaseCard(data, false);
+                    const reference = "https://" + (network === 'testnet' ? "testnet." : "") +
+                        "mintbase.io/thing/" + metadata['ref'] + ":" + contractId;
+                    cur_res = {
+                        ...cur_res,
+                        owner_id: metadata['owner_id'],
+                        id: id + ":" + contractId,
+                        reference: reference
+                    };
+                    result.push(cur_res);
                 }
             }
+
         }
         return result
     } catch (err) {

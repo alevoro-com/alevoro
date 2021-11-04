@@ -1,11 +1,13 @@
 export {NFT, LockedNFT}
 
 class NFT {
-    constructor(title, owner, token_id, url, isLocked) {
+    constructor(title, owner, token_id, url, extra, type, isLocked) {
         this.title = title;
         this.owner = owner;
         this.token_id = token_id;
         this.url = url;
+        this.extra = extra;
+        this.type = type;
         this.isLocked = isLocked;
     }
 }
@@ -13,9 +15,9 @@ class NFT {
 
 
 class LockedNFT extends NFT {
-    constructor(title, owner, token_id, url, isLocked,
+    constructor(title, owner, token_id, url, extra, type, isLocked,
                 apr, borrowed_money, duration, real_owner, is_confirmed, creditor, start_time) {
-        super(title, owner, token_id, url, isLocked);
+        super(title, owner, token_id, url, extra, type, isLocked);
 
         this.apr = apr;
         this.borrowed_money = borrowed_money;

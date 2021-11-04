@@ -21,8 +21,16 @@ async function getMintbase(url) {
 }
 
 
-// TODO
-function mintbaseCard(data) {
-    //console.log(data);
-    return  {type: 'mintbase', media: (data.media || data.animation_url || data.youtube_url), title: (data.title || "-")};
+function mintbaseCard(data, is_uri) {
+    if (is_uri){
+        return  {
+            type: 'mintbase',
+            media: (data.media || data.animation_url || data.youtube_url),
+            title: (data.title || "-")
+        };
+    }
+    return {
+        owner_id: data.owner_id.Account,
+        ref: data.metadata.reference
+    }
 }
