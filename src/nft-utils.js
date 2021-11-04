@@ -12,12 +12,10 @@ function getNFTsInfo(res, isLocked) {
             locked_info = el['locked_token'];
         }
 
-
         const title = nft_token['metadata']['title'] || "No title";
         const owner_id = nft_token['owner_id'];
         const token_id = nft_token['token_id'];
         const image_url = nft_token['metadata']['media'];
-
 
         let curNFT = new NFT(title, owner_id, token_id, image_url, isLocked);
         if (isLocked) {
