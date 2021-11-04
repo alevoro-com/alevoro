@@ -52,8 +52,10 @@ function updateUI() {
         document.querySelector('.login').innerHTML = "Sign In";
         document.querySelector('.account-name').innerHTML = "Please sign in";
     } else {
+
         document.querySelector('.login').innerHTML = "Sign out";
         document.querySelector('.account-name').innerHTML = window.walletConnection.getAccountId();
+
 
         getAccountNFTs(window.walletConnection.getAccountId());
 
@@ -75,6 +77,7 @@ async function getAccountNFTs(ownerWallet) {
     }
 
 }
+
 
 
 document.querySelector('.login').addEventListener("click", function () {
