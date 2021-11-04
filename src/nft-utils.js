@@ -2,32 +2,32 @@ import {LockedNFT, NFT} from "./classes";
 export {getNFTsInfo, showNFT}
 
 
-function getNFTsInfo(res, isLocked) {
+function getNFTsInfo(res) {
     let nfts = [];
+    console.log("LOCKED");
     for (let el of res) {
-        let nft_token = el;
-        let locked_info = null;
-        if (isLocked){
-            nft_token = el['json_token'];
-            locked_info = el['locked_token'];
-        }
-
-        const title = nft_token['metadata']['title'] || "No title";
-        const owner_id = nft_token['owner_id'];
-        const token_id = nft_token['token_id'];
-        const image_url = nft_token['metadata']['media'];
-
-        let curNFT = new NFT(title, owner_id, token_id, image_url, isLocked);
-        if (isLocked) {
-            console.log(locked_info);
-            curNFT = new LockedNFT(title, owner_id, token_id, image_url, isLocked,
-                locked_info['apr'], locked_info['borrowed_money'], locked_info['duration'],
-                locked_info['owner_id'],locked_info['is_confirmed'], locked_info['creditor'],
-                locked_info['start_time'])
-        }
-
-        nfts.push(curNFT);
+        console.log(el);
+        // let nft_token = el;
+        // let locked_info = null;
+        //
+        //
+        // const title = nft_token['metadata']['title'] || "No title";
+        // const owner_id = nft_token['owner_id'];
+        // const token_id = nft_token['token_id'];
+        // const image_url = nft_token['metadata']['media'];
+        //
+        // let curNFT = new NFT(title, owner_id, token_id, image_url, isLocked);
+        // if (isLocked) {
+        //     console.log(locked_info);
+        //     curNFT = new LockedNFT(title, owner_id, token_id, image_url, isLocked,
+        //         locked_info['apr'], locked_info['borrowed_money'], locked_info['duration'],
+        //         locked_info['owner_id'],locked_info['is_confirmed'], locked_info['creditor'],
+        //         locked_info['start_time'])
+        // }
+        //
+        // nfts.push(curNFT);
     }
+    console.log("LOCKED END");
     return nfts
 }
 
@@ -46,7 +46,7 @@ function showNFT(nft, nftState) {
     }
     return "<div class=\"nft\">\n" +
         "   <div class=\"nft__image\"><img " + divInfo + " src=\"" + nft.url + "\" alt=\"" + nft.title + "\"></div>\n" +
-        "   <h2 class=\"nft__title\">" + nft.title + "</h2>\n" +
+        "   <a class=\"nft__title\"  href=\"" + nft.extra +"\" target=\"_blank\">" + nft.title + "</a>\n" +
         "   <p class=\"nft__owner\">" + bottomText + "</p>\n" +
         "</div>"
 }

@@ -16,8 +16,8 @@
     "test:cargo": "cd contract && cargo test -- --nocapture",
     "test": "yarn build && yarn test:cargo && jest",
 
-    "bd": "yarn build && near deploy contract.alevoro.testnet  --keyPath ./neardev/keys/contract.alevoro.testnet.json ./out/main.wasm",
-    "migrate": "near call contract.alevoro.testnet migrate '{}' --accountId contract.alevoro.testnet --keyPath ./neardev/keys/contract.alevoro.testnet.json"
+    "bd": "yarn build && near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json ./out/main.wasm",
+    "migrate": "near call $CON_NAME migrate '{}' --accountId $CON_NAME --keyPath ./neardev/keys/$CON_NAME.json"
   },
   "devDependencies": {
     "env-cmd": "^10.1.0",

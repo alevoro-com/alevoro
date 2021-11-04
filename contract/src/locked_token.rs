@@ -34,6 +34,8 @@ pub struct LockedToken {
     pub apr: u64,
     pub creditor: Option<AccountId>,
     pub start_time: Option<u64>,
+    pub extra: String,
+    pub market_type: String,
     pub state: LockedTokenState,
 }
 

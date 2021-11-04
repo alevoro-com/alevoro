@@ -9,7 +9,7 @@ async function auth(){
     const keyPair = KeyPair.fromString(PRIVATE_KEY);
 
     await keyStore.setKey("testnet", "contract.pep.testnet", keyPair);
-    console.log("AUTH START")
+    console.log("AUTH START");
     const config = {
         networkId: "testnet",
         keyStore: keyStore,
@@ -21,13 +21,13 @@ async function auth(){
 
     const near = await connect(config);
     const account = await near.account("contract.pep.testnet");
-    console.log("AUTH END")
+    console.log("AUTH END");
     return account;
 }
 
 async function main() {
     const account = await auth();
-    console.log("DONE")
+    console.log("DONE");
 
     read_contract(account);
 
@@ -42,8 +42,8 @@ async function read_contract(account) {
         const tx = await account.viewFunction(
             'con.alevoro.testnet',
             'get_all_locked_tokens'
-        )
-        console.log(tx)
+        );
+        console.log(tx);
         console.log("STATUS:", tx.status)
     } catch (e) {
         console.log("ERROR");
@@ -62,7 +62,7 @@ async function send_nft(account, contractId, tokenId, receiverId) {
             },
             '100000000000000',
             '1'
-        )
+        );
         console.log("STATUS:", tx.status)
     } catch (e) {
         console.log("ERROR");

@@ -11,11 +11,9 @@ use near_sdk::{
 };
 
 use near_contract_standards::non_fungible_token::{
-    refund_deposit, hash_account_id, TokenId
+    refund_deposit, hash_account_id, TokenId,
 };
-use near_contract_standards::non_fungible_token::metadata::{
-    TokenMetadata
-};
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
 use crate::nft_to_json_converter::*;
 use crate::locked_token::*;
@@ -144,11 +142,15 @@ impl Contract {
     }
 
     #[payable]
-    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId,
-                                    borrowed_money: String,
-                                    apr: u64,
-                                    borrow_duration: u64,
-                                    market_id: String) {
+    pub fn transfer_nft_to_contract(
+        &mut self,
+        token_id: TokenId,
+        borrowed_money: String,
+        apr: u64,
+        borrow_duration: u64,
+        extra: String,
+        market_type: String
+    ) {
         // TODO: ADD CROsS-CONTRACT CALL TRANSFER FROM OWNER TO CONTRACT
         let account_id = &env::predecessor_account_id();
         let initial_storage_usage = env::storage_usage() as i128;
@@ -163,6 +165,8 @@ impl Contract {
             apr: apr,
             creditor: None,
             start_time: None,
+            extra: extra,
+            market_type: market_type,
             state: LockedTokenState::Sale,
         });
 
@@ -184,7 +188,13 @@ impl Contract {
     }
 
     #[payable]
-    fn change_status_to_some_returning(&mut self, init_owner: &&AccountId, return_owner: &&AccountId, token_id: TokenId, action : LockedTokenState) {
+    fn change_status_to_some_returning(
+        &mut self,
+        init_owner: &&AccountId,
+        return_owner: &&AccountId,
+        token_id: TokenId,
+        action: LockedTokenState
+    ) {
         let initial_storage_usage = env::storage_usage() as i128;
 
         let mut locked_tokens = self.get_tokens_stored_per_owner(init_owner);
@@ -362,7 +372,6 @@ impl Contract {
             assert_eq!(&token.owner_id, owner_id);
 
             if token.state == LockedTokenState::Locked {
-
                 assert!(!self.check_is_token_delayed(token.clone()));
 
                 let mut borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
@@ -439,13 +448,12 @@ impl Contract {
             assert!(self.nft_locker_by_token_id.remove(&token_id).is_some());
 
             env::log(format!("Fully removed token: {} from contract.", token_id).as_bytes());
-
         } else {
             env::panic(format!("Can't find token with Id: {} in locked tokens of last owner.", token_id).as_bytes());
         }
     }
 
-    fn check_is_token_delayed(&self, token : LockedToken) -> bool {
+    fn check_is_token_delayed(&self, token: LockedToken) -> bool {
         let now = Duration::from_nanos(env::block_timestamp());
         let deal_time = Duration::from_nanos(token.start_time.unwrap());
 
