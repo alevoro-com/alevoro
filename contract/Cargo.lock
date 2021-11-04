@@ -2383,6 +2383,7 @@ dependencies = [
  "near-contract-standards",
  "near-sdk",
  "near-sdk-sim",
+ "serde",
 ]
 
 [[package]]
