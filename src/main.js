@@ -276,7 +276,7 @@ function showModalNft(id, nftState) {
             if (amount && seconds && apr) {
                 const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: seconds,
                                 extra: nft.extra, market_type: nft.type};
-                contract.transfer_nft_to_contract(params, GAS, deposit).then(updateUI);
+                contract.transfer_nft_to_contract(params, "300000000000000", deposit).then(updateUI);
                 modalNFT.style.display = "none";
             }
         });
