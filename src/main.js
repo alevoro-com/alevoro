@@ -191,7 +191,7 @@ function showModalNft(id, nftState) {
     const lockedBlock = document.getElementById('modal-back-block');
     const borrowBlock = document.getElementById('modal-borrow-block');
     document.querySelector('.modal-main-btn').style.display = 'inline';
-    if (nft.isLocked) {
+    if (nft.isLocked && nft.state !== "Return" && nft.state !== "TransferToCreditor" && nft.state !== "TransferToBorrower") {
         lockedBlock.style.display = 'block';
         borrowBlock.style.display = 'none';
 
@@ -199,7 +199,7 @@ function showModalNft(id, nftState) {
         const curDur = secondsToTime(nft.duration);
         document.querySelector('.duration').innerHTML = `${curDur[0]} days, ${curDur[1]}:${curDur[2]}:${curDur[3]}`;
         document.querySelector('.amount').innerHTML = formatNearAmount(nft.borrowed_money);
-        if (nft.state !== "Sale") {
+        if (nft.state === "Locked") {
             document.querySelector('.confirmed').style.display = 'block';
             document.querySelector('.modal-main-btn').innerHTML = "Repaid loan";
             document.querySelector('.creditor').innerHTML = nft.creditor;

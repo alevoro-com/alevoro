@@ -26,11 +26,10 @@ function showNFT(nft, nftState) {
     if (nftState === 'Market' || nftState === 'MyLoans') {
         bottomText = nft.real_owner;
     } else if (nft.isLocked) {
-        console.log(nft.state);
-        if (nft.state !== "Sale") {
-            bottomText = "Collateral";
-        } else {
+        if (nft.state === "Sale"){
             bottomText = "Locked";
+        } else if (nft.state === "Locked") {
+            bottomText = "Collateral";
         }
     }
     return "<div class=\"nft\">\n" +
