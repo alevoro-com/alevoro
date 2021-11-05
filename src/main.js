@@ -1,6 +1,6 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
-import {getConfig, CONTRACT_NAME} from "./config";
+import getConfig from "./config";
 import {getNFTsInfo, showNFT} from "./nft-utils.js";
 import {getNFTs, viewAccountNFT} from "./nft-view/nft-view";
 import {NFT} from "./classes";
@@ -27,6 +27,9 @@ let stateTick = 0;
 const SEC_IN_MIN = 60;
 const SEC_IN_HOUR = 60 * SEC_IN_MIN;
 const SEC_IN_DAY = 24 * SEC_IN_HOUR;
+
+const CONTRACT_NAME =  nearConfig.contractName;
+
 
 async function connect(nearConfig) {
     // Connects to NEAR and provides `near`, `walletAccount` and `contract` objects in `window` scope
@@ -88,18 +91,18 @@ function updateUI() {
             account_id: window.walletConnection.getAccountId(),
             need_all: true
         }).then(res => {
-            initNFTs(getNFTsInfo(res), "MyNFTs", curStateTick);
+            initNFTs(getNFTsInfo(res, CONTRACT_NAME), "MyNFTs", curStateTick);
         });
 
         contract.get_all_locked_tokens({}).then(res => {
-            initNFTs(getNFTsInfo(res), "Market", curStateTick);
+            initNFTs(getNFTsInfo(res, CONTRACT_NAME), "Market", curStateTick);
         });
 
 
         contract.get_debtors_tokens({
             account_id: window.walletConnection.getAccountId()
         }).then(res => {
-            initNFTs(getNFTsInfo(res), "MyLoans", curStateTick);
+            initNFTs(getNFTsInfo(res, CONTRACT_NAME), "MyLoans", curStateTick);
         });
 
         setTimeout(function () {
