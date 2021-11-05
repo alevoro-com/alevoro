@@ -94,7 +94,7 @@ function updateUI() {
             initNFTs(getNFTsInfo(res, CONTRACT_NAME), "MyNFTs", curStateTick);
         });
 
-        contract.get_all_locked_tokens({}).then(res => {
+        contract.get_all_locked_tokens({need_all: false}).then(res => {
             initNFTs(getNFTsInfo(res, CONTRACT_NAME), "Market", curStateTick);
         });
 

@@ -71,11 +71,12 @@ impl Contract {
     }
 
     pub fn get_all_locked_tokens(
-        &self
+        &self,
+        need_all: bool,
     ) -> Vec<LockedToken> {
         let mut all_locked_tokens = vec![];
         for account_id in self.tokens_stored_per_owner.keys_as_vector().iter() {
-            all_locked_tokens.append(&mut self.get_locked_tokens(account_id, false))
+            all_locked_tokens.append(&mut self.get_locked_tokens(account_id, need_all))
         }
         all_locked_tokens
     }
