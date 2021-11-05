@@ -22,6 +22,7 @@ async function getMintbase(url) {
 
 
 function mintbaseCard(data, is_uri) {
+    console.log(data, is_uri);
     if (is_uri){
         return  {
             type: 'mintbase',
@@ -30,7 +31,6 @@ function mintbaseCard(data, is_uri) {
         };
     }
     return {
-        owner_id: data.owner_id.Account,
-        ref: data.metadata.reference
+        ref: data.reference
     }
 }

@@ -44,14 +44,14 @@ async function viewAccountNFT(contractId, accountId) {
             const data_specific = await getMintbase(url);
             if (data_specific && !data_specific.error){
                 let cur_res = mintbaseCard(data_specific, true);
-                const data = await account.viewFunction(contractId, 'nft_token', {token_id: '' + id});
+                const data = await account.viewFunction(contractId, 'nft_token_metadata', {token_id: '' + id});
                 if (data) {
                     const metadata = mintbaseCard(data, false);
                     const reference = "https://" + (network === 'testnet' ? "testnet." : "") +
                         "mintbase.io/thing/" + metadata['ref'] + ":" + contractId;
                     cur_res = {
                         ...cur_res,
-                        owner_id: metadata['owner_id'],
+                        owner_id: accountId,
                         id: id + ":" + contractId,
                         reference: reference
                     };
