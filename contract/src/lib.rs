@@ -1,5 +1,4 @@
 mod locked_token;
-mod nft_to_json_converter;
 mod cross_calls;
 
 use std::cmp::max;
@@ -16,7 +15,6 @@ use near_contract_standards::non_fungible_token::{
 };
 use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
-use crate::nft_to_json_converter::*;
 use crate::locked_token::*;
 use crate::cross_calls::*;
 
@@ -53,7 +51,7 @@ pub enum StorageKey {
     LockerByTokenId,
 }
 
-const CONTRACT_NAME: &str = "contract.alevoro.testnet";
+const CONTRACT_NAME: &str = "contract.pep.testnet";
 
 #[near_bindgen]
 impl Contract {
@@ -74,7 +72,7 @@ impl Contract {
 
     pub fn get_all_locked_tokens(
         &self
-    ) -> Vec<JsonLockedToken> {
+    ) -> Vec<LockedToken> {
         let mut all_locked_tokens = vec![];
         for account_id in self.tokens_stored_per_owner.keys_as_vector().iter() {
             all_locked_tokens.append(&mut self.get_locked_tokens(account_id, false))
@@ -82,45 +80,14 @@ impl Contract {
         all_locked_tokens
     }
 
-    pub fn get_locked_tokens(
-        &self,
-        account_id: AccountId,
-        need_all: bool,
-    ) -> Vec<JsonLockedToken> {
-        let mut locked_tokens_jsons = vec![];
-        let locked_tokens = self.get_locked_instances(account_id, need_all);
-        for locked_token in locked_tokens.iter() {
-            let json_token = self.nft_maybe_to_json(locked_token.token_id.clone()).unwrap().clone();
-            locked_tokens_jsons.push(JsonLockedToken {
-                json_token: json_token,
-                locked_token: locked_token.clone(),
-            });
-        }
-        locked_tokens_jsons
-    }
-
     pub fn get_debtors_tokens(
         &self,
         account_id: AccountId,
-    ) -> Vec<JsonLockedToken> {
-        let credit_tokens = self.get_tokens_for_lent_money(&&account_id);
-
-        let mut result = vec![];
-        for locked_token in credit_tokens.iter() {
-            let token_id = locked_token.token_id.clone();
-            result.push(
-                JsonLockedToken {
-                    json_token: self.nft_maybe_to_json(token_id).unwrap(),
-                    locked_token: locked_token.clone(),
-                }
-            )
-        }
-
-        result
+    ) -> Vec<LockedToken> {
+        return self.get_tokens_for_lent_money(&&account_id).to_vec();
     }
 
-    #[private]
-    fn get_locked_instances(
+    pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
         need_all: bool,
@@ -149,13 +116,15 @@ impl Contract {
         assert_eq!(env::signer_account_id(), owner_id);
         let initial_storage_usage = env::storage_usage() as i128;
 
-        let params: Vec<&str> = msg.split(",").collect();
-        let (borrowed_money,
+        let params: Vec<&str> = msg.split("!#@").collect();
+        let (market,
+            borrowed_money,
             apr,
             borrow_duration,
             extra,
             market_type,
-            market) = (params[0], params[1], params[2], params[3], params[4], params[5]);
+            title,
+            media) = (params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7]);
 
         marketplace::nft_transfer(ValidAccountId::try_from(CONTRACT_NAME).unwrap(),
                                   token_id.to_string(),
@@ -166,9 +135,10 @@ impl Contract {
                                   10_000_000_000_000);
 
         let mut locked_tokens = self.get_tokens_stored_per_owner(&&owner_id);
+        let token_unique_id = token_id.to_string() + ":" + market;
 
         locked_tokens.insert(&LockedToken {
-            token_id: token_id.clone().to_string(),
+            token_id: token_unique_id.clone().to_string(),
             owner_id: owner_id.clone(),
             duration: borrow_duration.parse::<u64>().unwrap(),
             borrowed_money: borrowed_money.to_string(),
@@ -177,11 +147,13 @@ impl Contract {
             start_time: None,
             extra: extra.to_string(),
             market_type: market_type.to_string(),
+            title: title.to_string(),
+            media: media.to_string(),
             state: LockedTokenState::Sale,
         });
 
         self.tokens_stored_per_owner.insert(&owner_id, &locked_tokens);
-        self.nft_locker_by_token_id.insert(&token_id.to_string(), &owner_id);
+        self.nft_locker_by_token_id.insert(&token_unique_id.to_string(), &owner_id);
 
         let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
 
@@ -191,69 +163,6 @@ impl Contract {
         refund_deposit(required_storage_in_bytes);
     }
 
-    #[payable]
-    pub fn transfer_nft_to_contract(
-        &mut self,
-        token_id: TokenId,
-        borrowed_money: String,
-        apr: u64,
-        borrow_duration: u64,
-        extra: String,
-        market_type: String
-    ) {
-        // let account_id = &env::predecessor_account_id();
-        // let initial_storage_usage = env::storage_usage() as i128;
-        //
-        // let cloned_token = token_id.clone().to_string();
-        // let split_id_and_marketplace: Vec<&str> = cloned_token.split(":").collect();
-        // let (token_id, marketplace) = (split_id_and_marketplace[0], split_id_and_marketplace[1]);
-        //
-        // marketplace::nft_transfer(ValidAccountId::try_from(CONTRACT_NAME).unwrap(),
-        //                           token_id.to_string(),
-        //                           &marketplace,
-        //                           1,
-        //                           25_000_000_000_000);
-        //
-        // let mut locked_tokens = self.get_tokens_stored_per_owner(&&account_id);
-        //
-        // locked_tokens.insert(&LockedToken {
-        //     token_id: token_id.clone().to_string(),
-        //     owner_id: account_id.clone(),
-        //     duration: borrow_duration,
-        //     borrowed_money: borrowed_money,
-        //     apr,
-        //     creditor: None,
-        //     start_time: None,
-        //     extra: extra,
-        //     market_type: market_type,
-        //     state: LockedTokenState::Sale,
-        // });
-        //
-        // self.tokens_stored_per_owner.insert(&account_id, &locked_tokens);
-        // self.nft_locker_by_token_id.insert(&token_id.to_string(), &account_id);
-        //
-        // let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
-        //
-        // let required_storage_in_bytes =
-        //     ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
-        //
-        // refund_deposit(required_storage_in_bytes);
-
-        // let cloned_token = token_id.clone().to_string();
-        // let split_id_and_marketplace: Vec<&str> = cloned_token.split(":").collect();
-        // let (token_id, marketplace) = (split_id_and_marketplace[0], split_id_and_marketplace[1]);
-        //
-        // marketplace::nft_approve(token_id.to_string(),
-        //                          ValidAccountId::try_from(CONTRACT_NAME).unwrap(),
-        //                          Some(format!("{},{},{},{},{},{}",
-        //                                        borrowed_money, apr,
-        //                                        borrow_duration, extra,
-        //                                        market_type, marketplace)),
-        //                          &marketplace.to_string(),
-        //                          env::attached_deposit(),
-        //                          200000000000000
-        // );
-    }
 
     #[payable]
     pub fn transfer_nft_back(&mut self, token_id: TokenId) {

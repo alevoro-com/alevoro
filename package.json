@@ -6,7 +6,7 @@
   "scripts": {
     "build": "cd contract && cargo build --target wasm32-unknown-unknown --release",
     "postbuild": "cp contract/target/wasm32-unknown-unknown/release/rust_counter_tutorial.wasm ./out/main.wasm",
-    "deploy:contract": "near deploy contract.alevoro.testnet  --keyPath ./neardev/keys/contract.alevoro.testnet.json",
+    "deploy:contract": "near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json",
     "deploy:pages": "gh-pages -d src",
     "deploy": "yarn build && yarn deploy:contract",
     "deploy:dev": "yarn build && near dev-deploy",

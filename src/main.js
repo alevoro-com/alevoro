@@ -1,6 +1,6 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
-import getConfig from "./config";
+import {getConfig, CONTRACT_NAME} from "./config";
 import {getNFTsInfo, showNFT} from "./nft-utils.js";
 import {getNFTs, viewAccountNFT} from "./nft-view/nft-view";
 import {NFT} from "./classes";
@@ -46,7 +46,7 @@ async function connect(nearConfig) {
         // View methods are read-only – they don't modify the state, but usually return some value
         viewMethods: ['get_debtors_tokens', 'get_locked_tokens', 'get_all_locked_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
-        changeMethods: ['transfer_nft_to_contract', 'transfer_nft_back', 'repaid_loan',
+        changeMethods: ['transfer_nft_back', 'repaid_loan',
             'transfer_deposit_for_nft', 'check_transfer_overdue_nft_to_creditor'],
         // Sender is the account ID to initialize transactions.
         // getAccountId() will return empty string if user is still unauthorized
@@ -84,23 +84,23 @@ function updateUI() {
         );
 
 
-        // contract.get_locked_tokens({
-        //     account_id: window.walletConnection.getAccountId(),
-        //     need_all: true
-        // }).then(res => {
-        //     initNFTs(getNFTsInfo(res), "MyNFTs");
-        // });
-        //
-        // contract.get_all_locked_tokens({}).then(res => {
-        //     initNFTs(getNFTsInfo(res, true), "Market");
-        // });
-        //
-        //
-        // contract.get_debtors_tokens({
-        //     account_id: window.walletConnection.getAccountId()
-        // }).then(res => {
-        //     initNFTs(getNFTsInfo(res, true), "MyLoans");
-        // });
+        contract.get_locked_tokens({
+            account_id: window.walletConnection.getAccountId(),
+            need_all: true
+        }).then(res => {
+            initNFTs(getNFTsInfo(res), "MyNFTs", curStateTick);
+        });
+
+        contract.get_all_locked_tokens({}).then(res => {
+            initNFTs(getNFTsInfo(res), "Market", curStateTick);
+        });
+
+
+        contract.get_debtors_tokens({
+            account_id: window.walletConnection.getAccountId()
+        }).then(res => {
+            initNFTs(getNFTsInfo(res), "MyLoans", curStateTick);
+        });
 
         setTimeout(function () {
             document.querySelector('.alert').innerHTML = getAlertPhrase();
@@ -133,7 +133,7 @@ function initNFTs(nfts, PAGE, curStateTick) {
         if (nfts.length > 0){
             document.querySelector('.gallery-alert').style.display = 'none';
         }
-        showGallery(nfts, PAGE, curStateTick);
+        showGallery(nfts, PAGE);
     }
 }
 
@@ -163,7 +163,7 @@ function getAlertPhrase(){
 }
 
 
-function showGallery(nfts, nftState, curStateTick) {
+function showGallery(nfts, nftState) {
     for (let i = 0; i < nfts.length; i++) {
         document.querySelector(".gallery").innerHTML += showNFT(nfts[i], nftState);
     }
@@ -196,7 +196,7 @@ function showModalNft(id, nftState) {
         const curDur = secondsToTime(nft.duration);
         document.querySelector('.duration').innerHTML = `${curDur[0]} days, ${curDur[1]}:${curDur[2]}:${curDur[3]}`;
         document.querySelector('.amount').innerHTML = formatNearAmount(nft.borrowed_money);
-        if (nft.is_confirmed) {
+        if (nft.state !== "Sale") {
             document.querySelector('.confirmed').style.display = 'block';
             document.querySelector('.modal-main-btn').innerHTML = "Repaid loan";
             document.querySelector('.creditor').innerHTML = nft.creditor;
@@ -274,9 +274,21 @@ function showModalNft(id, nftState) {
             const seconds = days * SEC_IN_DAY + hours * SEC_IN_HOUR + minutes * SEC_IN_MIN;
 
             if (amount && seconds && apr) {
-                const params = {token_id: id, borrowed_money: amount, apr: apr, borrow_duration: seconds,
-                                extra: nft.extra, market_type: nft.type};
-                contract.transfer_nft_to_contract(params, "300000000000000", deposit).then(updateUI);
+                const idAndContract = id.split(':');
+                const params = [idAndContract[1], amount, apr, seconds, nft.extra, nft.type, nft.title, nft.url];
+                const msg = params.join("!#@");
+                console.log(msg);
+                window.walletConnection.account().functionCall(
+                    idAndContract[1],
+                    'nft_approve',
+                    {
+                        token_id: idAndContract[0],
+                        account_id: CONTRACT_NAME,
+                        msg: msg
+                    },
+                    "300000000000000",
+                    parseNearAmount('0.1')
+                ).then(updateUI);
                 modalNFT.style.display = "none";
             }
         });

@@ -1,4 +1,4 @@
-const CONTRACT_NAME =  "contract.alevoro.testnet";
+const CONTRACT_NAME =  "contract.pep.testnet";
 
 function getConfig (env) {
   switch (env) {
@@ -56,4 +56,4 @@ function getConfig (env) {
   }
 }
 
-module.exports = getConfig
+module.exports = {getConfig, CONTRACT_NAME};

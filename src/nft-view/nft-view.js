@@ -38,7 +38,7 @@ async function viewAccountNFT(contractId, accountId) {
             from_index: '0',
             limit: 100
         });
-        if (list.error) return list;
+        if (list.error) return [];
         for (const id of list) {
             const url = await account.viewFunction(contractId, 'nft_token_uri', {token_id: '' + id});
             const data_specific = await getMintbase(url);
@@ -62,7 +62,6 @@ async function viewAccountNFT(contractId, accountId) {
         }
         return result
     } catch (err) {
-        console.log(err);
         return {error: err.type || err}
     }
 }

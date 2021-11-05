@@ -36,24 +36,7 @@ pub struct LockedToken {
     pub start_time: Option<u64>,
     pub extra: String,
     pub market_type: String,
+    pub title: String,
+    pub media: String,
     pub state: LockedTokenState,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct JsonToken {
-    pub token_id: TokenId,
-    pub owner_id: AccountId,
-    pub metadata: TokenMetadata,
-    pub approved_account_ids: HashMap<AccountId, u64>,
-
-    // // CUSTOM - fields
-    // pub royalty: HashMap<AccountId, u32>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-#[serde(crate = "near_sdk::serde")]
-pub struct JsonLockedToken {
-    pub json_token: JsonToken,
-    pub locked_token: LockedToken,
 }
