@@ -1,14 +1,13 @@
 import {LockedNFT} from "./classes";
-import {CONTRACT_NAME} from "./config";
 export {getNFTsInfo, showNFT}
 
 
-function getNFTsInfo(res) {
+function getNFTsInfo(res, con_name) {
     let nfts = [];
     console.log("LOCKED");
     for (let nft of res) {
         console.log(nft);
-        let curNFT = new LockedNFT(nft['title'], CONTRACT_NAME, nft['token_id'], nft['media'], nft['extra'], nft['type'],
+        let curNFT = new LockedNFT(nft['title'], con_name, nft['token_id'], nft['media'], nft['extra'], nft['type'],
             true, nft['apr'], nft['borrowed_money'], nft['duration'], nft['owner_id'], nft['state'],
             nft['creditor'], nft['start_time']);
 
