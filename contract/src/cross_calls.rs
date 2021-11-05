@@ -16,11 +16,4 @@ pub trait TokenTransfer {
         approval_id: Option<String>,
         memo: Option<String>
     );
-    //
-    // fn nft_approve(
-    //     &mut self,
-    //     token_id: TokenId,
-    //     account_id: ValidAccountId,
-    //     msg: Option<String>,
-    // ) -> Option<Promise>;
 }

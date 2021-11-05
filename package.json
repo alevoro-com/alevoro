@@ -6,7 +6,7 @@
   "scripts": {
     "build": "cd contract && cargo build --target wasm32-unknown-unknown --release",
     "postbuild": "cp contract/target/wasm32-unknown-unknown/release/rust_counter_tutorial.wasm ./out/main.wasm",
-    "deploy:contract": "near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json",
+    "deploy:contract": "near deploy contract.alevoro.testnet  --keyPath ./neardev/keys/contract.alevoro.testnet.json",
     "deploy:pages": "gh-pages -d src",
     "deploy": "yarn build && yarn deploy:contract",
     "deploy:dev": "yarn build && near dev-deploy",
@@ -16,8 +16,8 @@
     "test:cargo": "cd contract && cargo test -- --nocapture",
     "test": "yarn build && yarn test:cargo && jest",
 
-    "bd": "yarn build && near deploy $CON_NAME  --keyPath ./neardev/keys/$CON_NAME.json ./out/main.wasm",
-    "migrate": "near call $CON_NAME migrate '{}' --accountId $CON_NAME --keyPath ./neardev/keys/$CON_NAME.json"
+    "bd": "yarn build && near deploy contract.alevoro.testnet  --keyPath ./neardev/keys/contract.alevoro.testnet.json ./out/main.wasm",
+    "migrate": "near call contract.alevoro.testnet migrate '{}' --accountId contract.alevoro.testnet --keyPath ./neardev/keys/contract.alevoro.testnet.json"
   },
   "devDependencies": {
     "env-cmd": "^10.1.0",
