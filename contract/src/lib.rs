@@ -21,6 +21,7 @@ use crate::cross_calls::*;
 use std::str::FromStr;
 use std::time::Duration;
 use std::convert::TryFrom;
+use crate::locked_token::LockedTokenState::Locked;
 
 
 near_sdk::setup_alloc!();
@@ -419,15 +420,24 @@ impl Contract {
             .find(|x| x.token_id == token_id);
 
         if let Some(token) = token_exists_and_valid {
-            assert!(token.creditor.is_some());
-
-            let mut creditor_lent_money_tokens = self.get_tokens_for_lent_money(&&token.clone().creditor.unwrap());
+            assert!(token.creditor.is_some() &&
+                (token.state == LockedTokenState::TransferToCreditor ||
+                    token.state == LockedTokenState::TransferToBorrower) ||
+                token.creditor.is_none() && token.state == LockedTokenState::Return);
 
             assert!(locked_tokens.remove(&token));
             self.tokens_stored_per_owner.insert(&init_owner, &locked_tokens);
 
-            assert!(creditor_lent_money_tokens.remove(&token));
-            self.credit_tokens_per_creditor.insert(&token.creditor.unwrap(), &creditor_lent_money_tokens);
+            if token.creditor.is_some() {
+                let mut creditor_lent_money_tokens =
+                    self.get_tokens_for_lent_money(&&token.clone().creditor.unwrap());
+
+                let mut remove_token = token.clone();
+                remove_token.state = LockedTokenState::Locked;
+
+                assert!(creditor_lent_money_tokens.remove(&remove_token));
+                self.credit_tokens_per_creditor.insert(&token.creditor.unwrap(), &creditor_lent_money_tokens);
+            }
 
             assert!(self.nft_locker_by_token_id.remove(&token_id).is_some());
 

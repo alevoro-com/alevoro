@@ -2,15 +2,15 @@ const nearAPI = require("near-api-js");
 
 const { connect, keyStores ,KeyPair } = nearAPI;
 
-const CONTRACT_NAME = 'contract.pep.testnet';
+const CONTRACT_NAME = 'contract.alevoro.testnet';
 
 async function auth(){
     const keyStore = new keyStores.InMemoryKeyStore();
     const PRIVATE_KEY =
-    "2Ng7sBXHcxX2RtBZs543gQsSsFxg2Mz4oWF5n8UKZD3tBkrr4faPGkUQMXg6euo32PSTKodXhicbgTWU7JVGBHxp";
+    "PRIVATE KEY HERE";
     const keyPair = KeyPair.fromString(PRIVATE_KEY);
 
-    await keyStore.setKey("testnet", "contract.pep.testnet", keyPair);
+    await keyStore.setKey("testnet", "contract.alevoro.testnet", keyPair);
     console.log("AUTH START");
     const config = {
         networkId: "testnet",
@@ -22,7 +22,7 @@ async function auth(){
     };
 
     const near = await connect(config);
-    const account = await near.account("contract.pep.testnet");
+    const account = await near.account("contract.alevoro.testnet");
     console.log("AUTH END");
     return account;
 }
