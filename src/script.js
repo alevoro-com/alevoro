@@ -33,14 +33,14 @@ async function main() {
 
     const nfts = await read_contract(account);
     for (let nft of nfts) {
-        // const idAndContract = nft['token_id'].split(":");
-        // if (nft.state === "Return") {
-        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
-        // } else if (nft.state === "TransferToBorrower") {
-        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
-        // } else if (nft.state === "TransferToCreditor") {
-        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.creditor)
-        // }
+        const idAndContract = nft['token_id'].split(":");
+        if (nft.state === "Return") {
+            await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
+        } else if (nft.state === "TransferToBorrower") {
+            await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
+        } else if (nft.state === "TransferToCreditor") {
+            await send_nft(account, idAndContract[1], idAndContract[0], nft.creditor)
+        }
     }
 
 
