@@ -1,13 +1,13 @@
 const nearAPI = require("near-api-js");
 
 const { connect, keyStores ,KeyPair } = nearAPI;
+const jsonKey = require('../neardev/keys/contract.alevoro.testnet');
 
 const CONTRACT_NAME = 'contract.alevoro.testnet';
 
 async function auth(){
     const keyStore = new keyStores.InMemoryKeyStore();
-    const PRIVATE_KEY =
-    "PRIVATE KEY HERE";
+    const PRIVATE_KEY = jsonKey['private_key'];
     const keyPair = KeyPair.fromString(PRIVATE_KEY);
 
     await keyStore.setKey("testnet", "contract.alevoro.testnet", keyPair);
@@ -33,14 +33,14 @@ async function main() {
 
     const nfts = await read_contract(account);
     for (let nft of nfts) {
-        const idAndContract = nft['token_id'].split(":");
-        if (nft.state === "Return") {
-            await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
-        } else if (nft.state === "TransferToBorrower") {
-            await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
-        } else if (nft.state === "TransferToCreditor") {
-            await send_nft(account, idAndContract[1], idAndContract[0], nft.creditor)
-        }
+        // const idAndContract = nft['token_id'].split(":");
+        // if (nft.state === "Return") {
+        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
+        // } else if (nft.state === "TransferToBorrower") {
+        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.owner_id)
+        // } else if (nft.state === "TransferToCreditor") {
+        //     await send_nft(account, idAndContract[1], idAndContract[0], nft.creditor)
+        // }
     }
 
 

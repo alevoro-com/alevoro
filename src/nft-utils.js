@@ -8,7 +8,7 @@ function getNFTsInfo(res, con_name) {
     for (let nft of res) {
         console.log(nft);
         let curNFT = new LockedNFT(nft['title'], con_name, nft['token_id'], nft['media'], nft['extra'], nft['type'],
-            true, nft['apr'], nft['borrowed_money'], nft['duration'], nft['owner_id'], nft['state'],
+             nft['apr'], nft['borrowed_money'], nft['duration'], nft['owner_id'], nft['state'],
             nft['creditor'], nft['start_time']);
 
         nfts.push(curNFT);
@@ -23,9 +23,9 @@ function showNFT(nft, nftState) {
     console.log("show");
     const divInfo = `class=\"container_image\" id=\"${nft.token_id}\"`;
     let bottomText = nft.owner;
-    if (nftState === 'Market' || nftState === 'MyLoans') {
+    if (nftState === 'Market' || nftState === 'MyLoans' || nft.state === "Return" || nft.state === "TransferToBorrower") {
         bottomText = nft.real_owner;
-    } else if (nft.isLocked) {
+    } else {
         if (nft.state === "Sale"){
             bottomText = "Locked";
         } else if (nft.state === "Locked") {
