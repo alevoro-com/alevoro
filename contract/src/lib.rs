@@ -52,7 +52,7 @@ pub enum StorageKey {
     TokeIdToLockedToken
 }
 
-const CONTRACT_NAME: &str = "contract.pep.testnet";
+const CONTRACT_NAME: &str = "contract.alevoro.testnet";
 
 #[near_bindgen]
 impl Contract {
@@ -252,7 +252,7 @@ impl Contract {
             //
             // refund_deposit(storage_usage);
 
-            // TODO надо ли?
+            //
             // if !is_repaid.clone() && !is_delayed.clone() {
             //     refund_deposit(required_storage_in_bytes);
             // }
@@ -500,31 +500,8 @@ impl Contract {
     #[init(ignore_state)]
     #[private]
     pub fn migrate() -> Self {
-        // #[derive(BorshDeserialize)]
-        // struct Old {
-        //     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-
-        //     pub tokens_by_id: LookupMap<TokenId, Token>,
-
-        //     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
-
-        //     pub owner_id: AccountId,
-
-        //     /// The storage size in bytes for one account.
-        //     pub extra_storage_in_bytes_per_token: StorageUsage,
-
-        //     pub users_val: HashMap<AccountId, i8>,
-
-        //     pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
-
-        //     pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>
-        // }
-        // let state_1: Old = env::state_read().expect("Error");
 
         Self {
-            // tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            // tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
-            // token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
             owner_id: CONTRACT_NAME.to_string(),
             tokens_stored_per_owner: UnorderedMap::new(
                 StorageKey::NFTsPerOwner
