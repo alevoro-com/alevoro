@@ -56,4 +56,4 @@ function getConfig (env) {
   }
 }
 
-module.exports = getConfig
+module.exports = getConfig;

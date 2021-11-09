@@ -3,12 +3,9 @@
 <head>
   <meta charset="utf-8">
   <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-  <link rel="stylesheet" href="./main.css">
+  <link rel="stylesheet" href="main.css">
 </head>
 <body>
-<!--  <video id="videoBG" poster="assets/static_bg.png" autoplay muted loop>-->
-<!--    <source src="assets/1.mp4" type="video/mp4">-->
-<!--  </video>-->
   <div class="bg">
     <img class="bg__image" src="assets/bg.jpg" alt="">
   </div>
@@ -22,7 +19,6 @@
   </div>
   <div class="navigator-container">
     <b class="btn navigator market-btn">Market</b><b class="navigator">|</b>
-    <b class="btn navigator mint-btn">Mint</b><b class="navigator">|</b>
     <b class="btn navigator mynfts-btn">My NFTs</b><b class="navigator">|</b>
     <b class="btn navigator myloans-btn">My loans</b>
   </div>
@@ -32,18 +28,6 @@
 
 
   <!--  MODALS  -->
-  <div id="mintModal" class="modal">
-    <div id="mint-content-id" class="modal-content">
-      <div class="modal-header">
-        <span class="close closeMint">&times;</span>
-        <h2>Mint NFT</h2>
-      </div>
-        <p>Title: <input class="modal-input mint-title" name="title"></p>
-        <p>URL: <input class="modal-input mint-url" name="url"></p>
-        <div class="container-mint-image"></div>
-        <button class="modal-btn modal-mint-btn" >Mint</button>
-    </div>
-  </div>
   <div id="nftModal" class="modal">
     <div id="nft-content-id" class="modal-content">
       <div class="modal-header">

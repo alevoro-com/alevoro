@@ -1,74 +1,55 @@
-use std::collections::HashMap;
-use std::cmp::{min, max};
+mod locked_token;
+mod cross_calls;
+
+use std::cmp::max;
 
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
-use near_sdk::collections::{LazyOption, LookupMap, UnorderedMap, UnorderedSet};
-use near_sdk::json_types::{Base64VecU8, ValidAccountId, U64, U128};
-use near_sdk::serde::{Deserialize, Serialize};
+use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
+use near_sdk::json_types::ValidAccountId;
 use near_sdk::{
-    env, near_bindgen, AccountId, Balance, CryptoHash, PanicOnDefault, Promise, StorageUsage,
+    env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise, StorageUsage,
 };
 
-use crate::internal::*;
-pub use crate::metadata::*;
-pub use crate::mint::*;
-pub use crate::nft_core::*;
-pub use crate::token::*;
-pub use crate::enumerable::*;
-use std::convert::TryFrom;
-use std::str::FromStr;
-use crate::locked_token::*;
-use std::time::Duration;
+use near_contract_standards::non_fungible_token::{
+    refund_deposit, hash_account_id, TokenId,
+};
+use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
-mod internal;
-mod metadata;
-mod mint;
-mod nft_core;
-mod token;
-mod enumerable;
-mod locked_token;
+use crate::locked_token::*;
+use crate::cross_calls::*;
+
+use std::str::FromStr;
+use std::time::Duration;
+use std::convert::TryFrom;
+use crate::locked_token::LockedTokenState::Locked;
+
 
 near_sdk::setup_alloc!();
 
 #[near_bindgen]
 #[derive(BorshDeserialize, BorshSerialize, PanicOnDefault)]
 pub struct Contract {
-    pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
+    owner_id: AccountId,
 
-    pub tokens_by_id: LookupMap<TokenId, Token>,
+    tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<TokenId>>,
 
-    pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
+    credit_tokens_per_creditor: UnorderedMap<AccountId, UnorderedSet<TokenId>>,
 
-    pub owner_id: AccountId,
+    token_id_to_locked_token: LookupMap<TokenId, LockedToken>,
 
-    /// The storage size in bytes for one account.
-    pub extra_storage_in_bytes_per_token: StorageUsage,
-
-    pub metadata: LazyOption<NFTMetadata>,
-
-    pub tokens_stored_per_owner: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
-
-    pub credit_tokens_per_creditor: UnorderedMap<AccountId, UnorderedSet<LockedToken>>,
-
-    pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>,
+    nft_locker_by_token_id: LookupMap<TokenId, AccountId>,
 }
 
 /// Helper structure to for keys of the persistent collections.
 #[derive(BorshSerialize)]
 pub enum StorageKey {
-    TokensPerOwner,
-    TokenPerOwnerInner { account_id_hash: CryptoHash },
-    TokensById,
-    TokenMetadataById,
-    NftMetadata,
-    TokensPerType,
-    TokensPerTypeInner { token_type_hash: CryptoHash },
     TokenTypesLocked,
     NFTsPerOwner,
     NFTsPerOwnerInner { account_id_hash: CryptoHash },
     CreditNFTsPerOwner,
     CreditNFTsPerOwnerInner { account_id_hash: CryptoHash },
     LockerByTokenId,
+    TokeIdToLockedToken
 }
 
 const CONTRACT_NAME: &str = "contract.alevoro.testnet";
@@ -78,76 +59,39 @@ impl Contract {
     #[init]
     pub fn new(owner_id: ValidAccountId) -> Self {
         let mut this = Self {
-            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
-            token_metadata_by_id: UnorderedMap::new(
-                StorageKey::TokenMetadataById.try_to_vec().unwrap(),
-            ),
             owner_id: owner_id.into(),
-            extra_storage_in_bytes_per_token: 0,
-            metadata: LazyOption::new(
-                StorageKey::NftMetadata.try_to_vec().unwrap(),
-                None,
-            ),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
             credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
+            token_id_to_locked_token: LookupMap::new(StorageKey::TokeIdToLockedToken.try_to_vec().unwrap()),
         };
-
-        this.measure_min_token_storage_cost();
 
         this
     }
 
     pub fn get_all_locked_tokens(
-        &self
-    ) -> Vec<JsonLockedToken> {
+        &self,
+        need_all: bool,
+    ) -> Vec<LockedToken> {
         let mut all_locked_tokens = vec![];
         for account_id in self.tokens_stored_per_owner.keys_as_vector().iter() {
-            all_locked_tokens.append(&mut self.get_locked_tokens(account_id, false))
+            all_locked_tokens.append(&mut self.get_locked_tokens(account_id, need_all))
         }
         all_locked_tokens
-    }
-
-    pub fn get_locked_tokens(
-        &self,
-        account_id: AccountId,
-        need_all: bool,
-    ) -> Vec<JsonLockedToken> {
-        let mut locked_tokens_jsons = vec![];
-        let locked_tokens = self.get_locked_instances(account_id, need_all);
-        for locked_token in locked_tokens.iter() {
-            let json_token = self.nft_token(locked_token.token_id.clone()).unwrap().clone();
-            locked_tokens_jsons.push(JsonLockedToken {
-                json_token: json_token,
-                locked_token: locked_token.clone(),
-            });
-        }
-        locked_tokens_jsons
     }
 
     pub fn get_debtors_tokens(
         &self,
         account_id: AccountId,
-    ) -> Vec<JsonLockedToken> {
-        let credit_tokens = self.get_tokens_for_borrowed_money(&&account_id);
-
-        let mut result = vec![];
-        for locked_token in credit_tokens.iter() {
-            let token_id = locked_token.token_id.clone();
-            result.push(
-                JsonLockedToken {
-                    json_token: self.nft_token(token_id).unwrap(),
-                    locked_token: locked_token.clone(),
-                }
-            )
-        }
-
-        result
+    ) -> Vec<LockedToken> {
+        return self
+            .get_tokens_for_lent_money(&&account_id)
+            .iter()
+            .map(|x| self.token_id_to_locked_token.get(&x).unwrap())
+            .collect();
     }
 
-    #[private]
-    fn get_locked_instances(
+    pub fn get_locked_tokens(
         &self,
         account_id: AccountId,
         need_all: bool,
@@ -163,8 +107,11 @@ impl Contract {
         let start = 0;
         let end = keys.len();
         for i in start..end {
-            let cur_token: LockedToken = keys.get(i).unwrap();
-            if need_all || !cur_token.is_confirmed {
+            let cur_token: LockedToken =
+                self.token_id_to_locked_token.get(
+                    &keys.get(i).unwrap()
+                ).unwrap();
+            if need_all || cur_token.state == LockedTokenState::Sale {
                 tmp.push(cur_token);
             }
         }
@@ -172,90 +119,143 @@ impl Contract {
     }
 
     #[payable]
-    pub fn transfer_nft_to_contract(&mut self, token_id: TokenId, borrowed_money: String, apr: u64, borrow_duration: u64) {
-        let account_id = &env::predecessor_account_id();
+    pub fn nft_on_approve(&mut self, token_id: TokenId, owner_id: AccountId, approval_id: String, msg: String) {
+        assert_eq!(env::signer_account_id(), owner_id);
         let initial_storage_usage = env::storage_usage() as i128;
-        let token_id_cloned = token_id.clone();
 
-        self.nft_transfer(ValidAccountId::try_from(CONTRACT_NAME.to_string()).unwrap(), token_id, None, None);
-
-        let mut locked_tokens = self.get_tokens_stored_per_owner(&account_id);
-        locked_tokens.insert(&LockedToken {
-            token_id: token_id_cloned.clone(),
-            owner_id: account_id.clone(),
-            duration: borrow_duration,
+        let params: Vec<&str> = msg.split("!#@").collect();
+        let (market,
             borrowed_money,
             apr,
+            borrow_duration,
+            extra,
+            market_type,
+            title,
+            media) = (params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7]);
+
+        assert!(borrow_duration.parse::<u64>().unwrap() > 60);
+        assert!(apr.parse::<u64>().unwrap() > 0);
+
+        marketplace::nft_transfer(ValidAccountId::try_from(CONTRACT_NAME).unwrap(),
+                                  token_id.to_string(),
+                                  Some(approval_id),
+                                  None,
+                                  &market.clone(),
+                                  1,
+                                  10_000_000_000_000);
+
+        let mut locked_tokens_ids = self.get_tokens_stored_per_owner(&&owner_id);
+        let token_unique_id = token_id.to_string() + ":" + market;
+        let locked_token = LockedToken {
+            token_id: token_unique_id.clone().to_string(),
+            owner_id: owner_id.clone(),
+            duration: borrow_duration.parse::<u64>().unwrap(),
+            borrowed_money: borrowed_money.to_string(),
+            apr: apr.parse::<u64>().unwrap(),
             creditor: None,
             start_time: None,
-            is_confirmed: false,
-        });
-        self.tokens_stored_per_owner.insert(account_id, &locked_tokens);
-        self.nft_locker_by_token_id.insert(&token_id_cloned, account_id);
+            extra: extra.to_string(),
+            market_type: market_type.to_string(),
+            title: title.to_string(),
+            media: media.to_string(),
+            state: LockedTokenState::Sale,
+        };
 
-        let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
+        locked_tokens_ids.insert(&token_unique_id);
 
-        env::log(format!("Was {}. Now - was: {}.", initial_storage_usage, market_lock_size_in_bytes).as_bytes());
+        self.token_id_to_locked_token.insert(&token_unique_id.to_string(), &locked_token);
+        self.tokens_stored_per_owner.insert(&owner_id, &locked_tokens_ids);
+        self.nft_locker_by_token_id.insert(&token_unique_id.to_string(), &owner_id);
 
-        let required_storage_in_bytes =
-            ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
-
-        env::log(format!("Extra storage now: {}.", self.extra_storage_in_bytes_per_token).as_bytes());
-        env::log(format!("Required now: {}.", required_storage_in_bytes).as_bytes());
-
-        refund_deposit(required_storage_in_bytes);
-
-        env::log(format!("ADDED TOKEN ID: {}, SELLER: {}", token_id_cloned, self.nft_locker_by_token_id.get(&token_id_cloned).unwrap()).as_bytes())
+        // let storage_usage = max(0,
+        //                         env::storage_usage() as i128 - initial_storage_usage as i128)
+        //     as StorageUsage;
+        //
+        // refund_deposit(storage_usage);
     }
+
 
     #[payable]
     pub fn transfer_nft_back(&mut self, token_id: TokenId) {
         let owner_id = &env::predecessor_account_id();
-        self.transfer_nft_from_contract_to_return_owner(&owner_id, &owner_id, token_id, false, false);
+        self.change_status_to_some_returning(&owner_id, &owner_id, token_id, LockedTokenState::Return);
     }
 
     #[payable]
-    fn transfer_nft_from_contract_to_return_owner(&mut self, init_owner: &&AccountId, return_owner: &&AccountId, token_id: TokenId, is_repaid: bool, is_delayed: bool) {
+    fn change_status_to_some_returning(
+        &mut self,
+        init_owner: &&AccountId,
+        return_owner: &&AccountId,
+        token_id: TokenId,
+        action: LockedTokenState
+    ) {
         let initial_storage_usage = env::storage_usage() as i128;
 
-        let mut locked_tokens = self.get_tokens_stored_per_owner(init_owner);
-        let token_exists_and_valid = locked_tokens
+        let mut locked_tokens_ids = self.get_tokens_stored_per_owner(init_owner);
+        let token_exists_and_valid = locked_tokens_ids
             .iter()
-            .find(|x| x.token_id == token_id);
+            .find(|x| x.to_string() == token_id);
 
-        if let Some(token) = token_exists_and_valid {
+        if let Some(some_token_id) = token_exists_and_valid {
+            let token = self.token_id_to_locked_token.get(&some_token_id).unwrap();
+
             assert_eq!(token.owner_id.to_string(), init_owner.to_string());
-            assert!(!token.is_confirmed || is_repaid || is_delayed);
-            assert!(locked_tokens.remove(&token));
 
-            self.tokens_stored_per_owner.insert(init_owner, &locked_tokens);
-            self.nft_locker_by_token_id.remove(&token_id);
-            self.internal_transfer(&CONTRACT_NAME.to_string(), return_owner, &token_id, None, None);
+            match action {
+                LockedTokenState::Return => {
+                    assert_eq!(token.state, LockedTokenState::Sale);
+                    assert_eq!(init_owner, return_owner);
 
-            if is_repaid || is_delayed {
-                let creditor = token.creditor.unwrap();
-                let mut creditor_tokens_saved = self.get_tokens_for_borrowed_money(&&creditor);
+                    let mut changed_state_token = token.clone();
+                    changed_state_token.state = LockedTokenState::Return;
 
-                let rm_token = creditor_tokens_saved
-                    .iter()
-                    .find(|x| x.token_id == token_id).unwrap();
+                    assert!(self.
+                        token_id_to_locked_token
+                        .insert(&some_token_id, &changed_state_token)
+                        .is_some()
+                    );
+                }
+                LockedTokenState::TransferToCreditor => {
+                    assert_eq!(token.state, LockedTokenState::Locked);
+                    assert_eq!(return_owner.to_string(), token.clone().creditor.unwrap());
 
-                assert!(creditor_tokens_saved.remove(&rm_token));
+                    let mut changed_state_token = token.clone();
+                    changed_state_token.state = LockedTokenState::TransferToCreditor;
 
-                self.credit_tokens_per_creditor.insert(&creditor, &creditor_tokens_saved);
+                    assert!(self.
+                        token_id_to_locked_token
+                        .insert(&some_token_id, &changed_state_token)
+                        .is_some()
+                    );
+                }
+                LockedTokenState::TransferToBorrower => {
+                    assert_eq!(token.state, LockedTokenState::Locked);
+                    assert_eq!(return_owner.to_string(), token.owner_id);
+
+                    let mut changed_state_token = token.clone();
+                    changed_state_token.state = LockedTokenState::TransferToBorrower;
+
+                    assert!(self.
+                        token_id_to_locked_token
+                        .insert(&some_token_id, &changed_state_token)
+                        .is_some()
+                    );
+                }
+                _ => env::panic("Unreachable state!".to_string().as_bytes())
             }
 
-            let market_lock_size_in_bytes = max(0, env::storage_usage() as i128 - initial_storage_usage as i128);
+            // let storage_usage = max(0,
+            //                         env::storage_usage() as i128 - initial_storage_usage as i128)
+            //     as StorageUsage;
+            //
+            // env::log(format!("Was {}. Now: {}.", initial_storage_usage, env::storage_usage()).as_bytes());
+            //
+            // refund_deposit(storage_usage);
 
-            let required_storage_in_bytes =
-                ((self.extra_storage_in_bytes_per_token as i128) + market_lock_size_in_bytes) as StorageUsage;
-
-            env::log(format!("Was {}. Now: {}. Required: {}.", initial_storage_usage, env::storage_usage(), required_storage_in_bytes).as_bytes());
-
-
-            if !is_repaid.clone() && !is_delayed.clone() {
-                refund_deposit(required_storage_in_bytes);
-            }
+            //
+            // if !is_repaid.clone() && !is_delayed.clone() {
+            //     refund_deposit(required_storage_in_bytes);
+            // }
         } else {
             env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
         }
@@ -263,52 +263,70 @@ impl Contract {
 
     #[payable]
     pub fn transfer_deposit_for_nft(&mut self, token_id: TokenId) {
+        let initial_storage_usage = env::storage_usage() as i128;
+
         let lender_id = &env::predecessor_account_id();
-        let seller_id = self.nft_locker_by_token_id.get(&token_id).unwrap();
-        assert_ne!(lender_id.to_string(), seller_id.to_string());
-        env::log(format!("Seller: {}", seller_id).as_bytes());
+        let token_owner_id = self
+            .nft_locker_by_token_id
+            .get(&token_id).unwrap();
+
+        assert_ne!(lender_id.to_string(), token_owner_id.to_string());
+
+        env::log(format!("Seller: {}", token_owner_id).as_bytes());
         env::log(format!("TokeID: {}", token_id).as_bytes());
 
-        let mut contract_locked_tokens = self.get_tokens_stored_per_owner(&&seller_id);
+        let mut owner_locked_tokens_ids = self.get_tokens_stored_per_owner(&&token_owner_id);
+        let mut tokens_for_lent_money_ids = self.get_tokens_for_lent_money(&&lender_id);
 
-        let token_exists_and_valid = contract_locked_tokens
+        let token_exists_and_valid = owner_locked_tokens_ids
             .iter()
-            .find(|x| x.token_id == token_id);
+            .find(|x| x.to_string() == token_id);
 
-        if let Some(token) = token_exists_and_valid {
+        if let Some(some_token_id) = token_exists_and_valid {
+            let token = self
+                .token_id_to_locked_token
+                .get(&some_token_id)
+                .unwrap();
+
             let deposit = env::attached_deposit();
-            env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
+            env::log(format!("State: {}", token.state).as_bytes());
 
-            if !token.is_confirmed {
-                let borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
-                assert_eq!(deposit, borrowed_money);
-                let mut change_confirm_token = token.clone();
-                change_confirm_token.is_confirmed = true;
-                change_confirm_token.creditor = Some(AccountId::from(lender_id));
-                change_confirm_token.start_time = Some(env::block_timestamp());
+            if token.state == LockedTokenState::Sale {
+                let expected_amount_to_lend = u128::from_str(&token.borrowed_money)
+                    .expect("Failed to parse expected amount to lend.");
+                assert_eq!(deposit, expected_amount_to_lend);
 
-                assert!(contract_locked_tokens.remove(&token));
-                contract_locked_tokens.insert(&change_confirm_token);
+                let mut accept_deal_locked_token = token.clone();
+                accept_deal_locked_token.state = LockedTokenState::Locked;
+                accept_deal_locked_token.creditor = Some(AccountId::from(lender_id));
+                accept_deal_locked_token.start_time = Some(env::block_timestamp());
 
-                self.tokens_stored_per_owner.insert(&seller_id, &contract_locked_tokens);
+                assert!(self.
+                    token_id_to_locked_token
+                    .insert(&some_token_id, &accept_deal_locked_token)
+                    .is_some()
+                );
 
-                let mut tokens_for_borrowed_money = self.get_tokens_for_borrowed_money(&lender_id);
+                tokens_for_lent_money_ids.insert(&some_token_id);
+                self.credit_tokens_per_creditor.insert(lender_id, &tokens_for_lent_money_ids);
 
-                tokens_for_borrowed_money.insert(&change_confirm_token);
-
-                self.credit_tokens_per_creditor.insert(lender_id, &tokens_for_borrowed_money);
-
-                Promise::new(seller_id).transfer(deposit);
+                Promise::new(token_owner_id).transfer(deposit);
             } else {
                 env::panic("Token has already been bought or owner canceled the order.".as_bytes())
             }
         } else {
-            env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
+            env::panic(format!("Can't find token with Id: {} in contract.", token_id).as_bytes());
         }
+
+        // let storage_usage = max(0,
+        //                         env::storage_usage() as i128 - initial_storage_usage as i128)
+        //     as StorageUsage;
+        //
+        // refund_deposit(storage_usage);
     }
 
-    fn get_tokens_for_borrowed_money(&self, lender_id: &&String) -> UnorderedSet<LockedToken> {
-        let tokens_for_borrowed_money = self.credit_tokens_per_creditor
+    fn get_tokens_for_lent_money(&self, lender_id: &&String) -> UnorderedSet<TokenId> {
+        let tokens_for_borrowed_money_ids = self.credit_tokens_per_creditor
             .get(&lender_id).unwrap_or_else(|| {
             UnorderedSet::new(
                 StorageKey::CreditNFTsPerOwnerInner {
@@ -318,11 +336,11 @@ impl Contract {
                     .unwrap(),
             )
         });
-        tokens_for_borrowed_money
+        tokens_for_borrowed_money_ids
     }
 
-    fn get_tokens_stored_per_owner(&self, account_id: &&String) -> UnorderedSet<LockedToken> {
-        let locked_tokens = self.tokens_stored_per_owner.get(account_id).unwrap_or_else(|| {
+    fn get_tokens_stored_per_owner(&self, account_id: &&String) -> UnorderedSet<TokenId> {
+        let locked_tokens_ids = self.tokens_stored_per_owner.get(account_id).unwrap_or_else(|| {
             UnorderedSet::new(
                 StorageKey::NFTsPerOwnerInner {
                     account_id_hash: hash_account_id(&account_id),
@@ -331,32 +349,43 @@ impl Contract {
                     .unwrap(),
             )
         });
-        locked_tokens
+        locked_tokens_ids
     }
 
     #[payable]
-    pub fn repaid_loan(&mut self, token_id: TokenId) {
+    pub fn repay_loan(&mut self, token_id: TokenId) {
         let deposit = env::attached_deposit();
         let owner_id = &env::predecessor_account_id();
 
-        let contract_locked_tokens = self.get_tokens_stored_per_owner(&owner_id);
+        let contract_locked_tokens_ids = self.get_tokens_stored_per_owner(&owner_id);
 
-        env::log("GET LOCKED TOKENS".as_bytes());
-
-        let token_exists_and_valid = contract_locked_tokens
+        let token_exists_and_valid = contract_locked_tokens_ids
             .iter()
-            .find(|x| x.token_id == token_id);
+            .find(|x| x.to_string() == token_id);
 
-        env::log("CHECKED VALIDITY".as_bytes());
+        if let Some(some_token_id) = token_exists_and_valid {
+            let token = self
+                .token_id_to_locked_token
+                .get(&some_token_id)
+                .unwrap();
 
-        if let Some(token) = token_exists_and_valid {
-            env::log(format!("Is confirmed: {}", token.is_confirmed).as_bytes());
+            env::log(format!("Token state: {}", token.state).as_bytes());
+            assert_eq!(&token.owner_id, owner_id);
 
-            if token.is_confirmed {
-                let mut borrowed_money = u128::from_str(&token.borrowed_money).expect("Failed to parse borrowed amount");
+            if token.state == LockedTokenState::Locked {
+                assert!(!self.check_is_token_delayed(token.clone()));
+
+                let mut borrowed_money = u128::from_str(&token.borrowed_money)
+                    .expect("Failed to parse borrowed amount");
                 borrowed_money += borrowed_money * u128::from(token.apr) / 100;
+
                 assert_eq!(deposit, borrowed_money);
-                self.transfer_nft_from_contract_to_return_owner(&owner_id, &owner_id, token_id, true, false);
+
+                self.change_status_to_some_returning(&owner_id,
+                                                     &owner_id,
+                                                     token_id,
+                                                     LockedTokenState::TransferToBorrower);
+
                 if let Some(creditor) = token.creditor {
                     Promise::new(creditor).transfer(deposit);
                 } else {
@@ -373,104 +402,123 @@ impl Contract {
     #[payable]
     pub fn check_transfer_overdue_nft_to_creditor(&mut self, token_id: TokenId) {
         let creditor_id = &env::predecessor_account_id();
-        let locked_tokens = self.get_tokens_for_borrowed_money(&creditor_id);
+        let locked_tokens_ids = self
+            .get_tokens_for_lent_money(&&creditor_id.clone());
 
-        let token_exists_and_valid = locked_tokens
+        let token_exists_and_valid = locked_tokens_ids
             .iter()
-            .find(|x| x.token_id == token_id);
+            .find(|x| x.to_string() == token_id);
 
-        if let Some(token) = token_exists_and_valid {
+        if let Some(some_token_id) = token_exists_and_valid {
+            let token = self
+                .token_id_to_locked_token
+                .get(&some_token_id)
+                .unwrap();
+
             assert_eq!(token.creditor.clone().unwrap().to_string(), creditor_id.to_string());
-            assert!(token.is_confirmed);
+            assert_eq!(token.state, LockedTokenState::Locked);
 
-            let now = Duration::from_nanos(env::block_timestamp());
-            let deal_time = Duration::from_nanos(token.start_time.unwrap());
-
-            let diff = now - deal_time;
-            let sec_diff = diff.as_secs();
-
-            if sec_diff >= token.duration {
-                self.transfer_nft_from_contract_to_return_owner(&&token.owner_id, &&token.creditor.unwrap(), token_id, false, true);
-                env::log(format!("Successfully transferred NFT from {} to {} by creditor request.", token.owner_id, env::predecessor_account_id()).as_bytes());
+            if self.check_is_token_delayed(token.clone()) {
+                self.change_status_to_some_returning(&&token.owner_id,
+                                                     &&token.creditor.unwrap(),
+                                                     token_id,
+                                                     LockedTokenState::TransferToCreditor);
+                env::log(format!("Successfully transferred NFT from {} to {} by creditor request.",
+                                 token.owner_id,
+                                 env::predecessor_account_id()).as_bytes());
             } else {
-                env::panic(format!("It is still {} seconds left for lender to return money.", sec_diff).as_bytes());
+                env::panic(format!("There is still time for borrower to return money.")
+                    .as_bytes());
             }
         } else {
-            env::panic(format!("Can't find token with Id: {} in contract .", token_id).as_bytes());
+            env::panic(format!("Can't find token with Id: {} in contract .", token_id)
+                .as_bytes());
         }
     }
 
+    #[payable]
+    pub fn remove_transferred_token_from_locked_tokens(&mut self, token_id: TokenId) {
+        let storage = &env::predecessor_account_id();
+        assert_eq!(storage.to_string(), CONTRACT_NAME);
 
-    fn measure_min_token_storage_cost(&mut self) {
-        let initial_storage_usage = env::storage_usage();
-        let tmp_account_id = "a".repeat(64);
-        let u = UnorderedSet::new(
-            StorageKey::TokenPerOwnerInner {
-                account_id_hash: hash_account_id(&tmp_account_id),
+        let init_owner = self
+            .nft_locker_by_token_id
+            .get(&token_id)
+            .expect("No such token stored in contract.");
+
+        let mut locked_tokens_ids = self
+            .get_tokens_stored_per_owner(&&init_owner.clone());
+
+        let token_exists_and_valid = locked_tokens_ids
+            .iter()
+            .find(|x| x.to_string() == token_id);
+
+        if let Some(some_token_id) = token_exists_and_valid {
+            let token = self
+                .token_id_to_locked_token
+                .get(&some_token_id)
+                .unwrap();
+
+            assert!(token.creditor.is_some() &&
+                (token.state == LockedTokenState::TransferToCreditor ||
+                    token.state == LockedTokenState::TransferToBorrower) ||
+                token.creditor.is_none() && token.state == LockedTokenState::Return);
+
+            assert!(locked_tokens_ids.remove(&token_id));
+            self.tokens_stored_per_owner.insert(&init_owner, &locked_tokens_ids);
+
+            if token.creditor.is_some() {
+                let mut creditor_lent_money_tokens_ids = self
+                    .get_tokens_for_lent_money(&&token.clone().creditor.unwrap());
+
+                assert!(creditor_lent_money_tokens_ids.remove(&token_id));
+                self
+                    .credit_tokens_per_creditor
+                    .insert(&token.creditor.unwrap(), &creditor_lent_money_tokens_ids);
             }
-                .try_to_vec()
-                .unwrap(),
-        );
-        let locked_u = UnorderedSet::new(
-            StorageKey::NFTsPerOwnerInner {
-                account_id_hash: hash_account_id(&tmp_account_id),
-            }
-                .try_to_vec()
-                .unwrap(),
-        );
-        self.tokens_per_owner.insert(&tmp_account_id, &u);
-        self.tokens_stored_per_owner.insert(&tmp_account_id, &locked_u);
-        self.credit_tokens_per_creditor.insert(&tmp_account_id, &locked_u);
 
+            assert!(self.nft_locker_by_token_id.remove(&token_id).is_some());
+            assert!(self.token_id_to_locked_token.remove(&token_id).is_some());
 
-        let tokens_per_owner_entry_in_bytes = env::storage_usage() - initial_storage_usage;
-        let owner_id_extra_cost_in_bytes = (tmp_account_id.len() - self.owner_id.len()) as u64;
+            env::log(format!("Fully removed token: {} from contract.", token_id).as_bytes());
+        } else {
+            env::panic(format!("Can't find token with Id: {} in locked tokens of last owner.", token_id).as_bytes());
+        }
+    }
 
-        self.extra_storage_in_bytes_per_token =
-            tokens_per_owner_entry_in_bytes + owner_id_extra_cost_in_bytes;
+    fn check_is_token_delayed(&self, token: LockedToken) -> bool {
+        let now = Duration::from_nanos(env::block_timestamp());
+        let deal_time = Duration::from_nanos(token.start_time.unwrap());
 
-        self.tokens_per_owner.remove(&tmp_account_id);
-        self.tokens_stored_per_owner.remove(&tmp_account_id);
-        self.credit_tokens_per_creditor.remove(&tmp_account_id);
+        let diff = now - deal_time;
+        let sec_diff = diff.as_secs();
+
+        return sec_diff >= token.duration;
     }
 
 
     #[init(ignore_state)]
     #[private]
     pub fn migrate() -> Self {
-        // #[derive(BorshDeserialize)]
-        // struct Old {
-        //     pub tokens_per_owner: LookupMap<AccountId, UnorderedSet<TokenId>>,
-
-        //     pub tokens_by_id: LookupMap<TokenId, Token>,
-
-        //     pub token_metadata_by_id: UnorderedMap<TokenId, TokenMetadata>,
-
-        //     pub owner_id: AccountId,
-
-        //     /// The storage size in bytes for one account.
-        //     pub extra_storage_in_bytes_per_token: StorageUsage,
-
-        //     pub metadata: LazyOption<NFTMetadata>,
-
-        //     pub users_val: HashMap<AccountId, i8>,
-
-        //     pub tokens_stored_per_owner: LookupMap<AccountId, UnorderedSet<LockedToken>>,
-
-        //     pub nft_locker_by_token_id: LookupMap<TokenId, AccountId>
-        // }
-        // let state_1: Old = env::state_read().expect("Error");
 
         Self {
-            tokens_per_owner: LookupMap::new(StorageKey::TokensPerOwner.try_to_vec().unwrap()),
-            tokens_by_id: LookupMap::new(StorageKey::TokensById.try_to_vec().unwrap()),
-            token_metadata_by_id: UnorderedMap::new(StorageKey::TokenMetadataById.try_to_vec().unwrap()),
             owner_id: CONTRACT_NAME.to_string(),
-            extra_storage_in_bytes_per_token: 0,
-            metadata: LazyOption::new(StorageKey::NftMetadata.try_to_vec().unwrap(), None),
-            tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
-            credit_tokens_per_creditor: UnorderedMap::new(StorageKey::CreditNFTsPerOwner.try_to_vec().unwrap()),
-            nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
+            tokens_stored_per_owner: UnorderedMap::new(
+                StorageKey::NFTsPerOwner
+                .try_to_vec()
+                .unwrap()),
+            credit_tokens_per_creditor: UnorderedMap::new(
+                StorageKey::CreditNFTsPerOwner
+                    .try_to_vec()
+                    .unwrap()),
+            nft_locker_by_token_id: LookupMap::new(
+                StorageKey::LockerByTokenId
+                    .try_to_vec()
+                    .unwrap()),
+            token_id_to_locked_token:  LookupMap::new(
+                StorageKey::TokeIdToLockedToken
+                    .try_to_vec()
+                    .unwrap())
         }
     }
 }
