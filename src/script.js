@@ -1,16 +1,16 @@
 const nearAPI = require("near-api-js");
 
 const { connect, keyStores ,KeyPair } = nearAPI;
-const jsonKey = require('../neardev/keys/contract.alevoro.testnet');
+const jsonKey = require('../neardev/keys/contract.pep.testnet');
 
-const CONTRACT_NAME = 'contract.alevoro.testnet';
+const CONTRACT_NAME = 'contract.pep.testnet';
 
 async function auth(){
     const keyStore = new keyStores.InMemoryKeyStore();
     const PRIVATE_KEY = jsonKey['private_key'];
     const keyPair = KeyPair.fromString(PRIVATE_KEY);
 
-    await keyStore.setKey("testnet", "contract.alevoro.testnet", keyPair);
+    await keyStore.setKey("testnet", CONTRACT_NAME, keyPair);
     console.log("AUTH START");
     const config = {
         networkId: "testnet",
@@ -22,7 +22,7 @@ async function auth(){
     };
 
     const near = await connect(config);
-    const account = await near.account("contract.alevoro.testnet");
+    const account = await near.account(CONTRACT_NAME);
     console.log("AUTH END");
     return account;
 }
@@ -32,6 +32,7 @@ async function main() {
     console.log("DONE");
 
     const nfts = await read_contract(account);
+    console.log("READ COMPLETE");
     for (let nft of nfts) {
         const idAndContract = nft['token_id'].split(":");
         if (nft.state === "Return") {

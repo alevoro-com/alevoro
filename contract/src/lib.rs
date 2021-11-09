@@ -52,7 +52,7 @@ pub enum StorageKey {
     TokeIdToLockedToken
 }
 
-const CONTRACT_NAME: &str = "contract.alevoro.testnet";
+const CONTRACT_NAME: &str = "contract.pep.testnet";
 
 #[near_bindgen]
 impl Contract {
@@ -132,6 +132,9 @@ impl Contract {
             market_type,
             title,
             media) = (params[0], params[1], params[2], params[3], params[4], params[5], params[6], params[7]);
+
+        assert!(borrow_duration.parse::<u64>().unwrap() > 60);
+        assert!(apr.parse::<u64>().unwrap() > 0);
 
         marketplace::nft_transfer(ValidAccountId::try_from(CONTRACT_NAME).unwrap(),
                                   token_id.to_string(),
@@ -350,7 +353,7 @@ impl Contract {
     }
 
     #[payable]
-    pub fn repaid_loan(&mut self, token_id: TokenId) {
+    pub fn repay_loan(&mut self, token_id: TokenId) {
         let deposit = env::attached_deposit();
         let owner_id = &env::predecessor_account_id();
 

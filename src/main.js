@@ -1,9 +1,9 @@
 import "regenerator-runtime/runtime";
 import * as nearAPI from "near-api-js";
 import getConfig from "./config";
-import {getNFTsInfo, showNFT} from "./nft-utils.js";
+import {getNFTsInfo, showNFT} from "./nft-utils/nft-utils.js";
 import {getNFTs, viewAccountNFT} from "./nft-view/nft-view";
-import {NFT} from "./classes";
+import {NFT} from "./nft-utils/classes";
 
 const nearConfig = getConfig(process.env.NODE_ENV || "development");
 
@@ -49,7 +49,7 @@ async function connect(nearConfig) {
         // View methods are read-only – they don't modify the state, but usually return some value
         viewMethods: ['get_debtors_tokens', 'get_locked_tokens', 'get_all_locked_tokens'],
         // Change methods can modify the state, but you don't receive the returned value when called
-        changeMethods: ['transfer_nft_back', 'repaid_loan',
+        changeMethods: ['transfer_nft_back', 'repay_loan',
             'transfer_deposit_for_nft', 'check_transfer_overdue_nft_to_creditor'],
         // Sender is the account ID to initialize transactions.
         // getAccountId() will return empty string if user is still unauthorized
@@ -201,18 +201,16 @@ function showModalNft(id, nftState) {
         document.querySelector('.amount').innerHTML = formatNearAmount(nft.borrowed_money);
         if (nft.state === "Locked") {
             document.querySelector('.confirmed').style.display = 'block';
-            document.querySelector('.modal-main-btn').innerHTML = "Repaid loan";
+            document.querySelector('.modal-main-btn').innerHTML = "Repay loan";
             document.querySelector('.creditor').innerHTML = nft.creditor;
             let curTime = Math.round(new Date().getTime() / 1000);
             let timeLeft = Number.parseInt(nft.duration) - (curTime - Number.parseInt((nft.start_time).toString().slice(0, 10)));
-
             let multiplier = 1 + (Number.parseInt(nft.apr) / 100);
             deposit = parseNearAmount((Number.parseFloat(formatNearAmount(nft.borrowed_money)) * multiplier).toString());
             if (nftState === 'MyLoans') {
-                console.log("XXXXXXX");
                 document.querySelector('.title-modal-nft').innerHTML = "Debtor";
                 if (timeLeft > 0) {
-                    showTimer(timeLeft, function () {
+                    showTimer(timeLeft, () => {
                         if (navigatorState === 'MyLoans' && nft.state !== 'TransferToCreditor' && nft.state !== 'TransferToBorrower') {
                             document.querySelector('.modal-main-btn').style.display = 'inline';
                             document.querySelector('.modal-main-btn').innerHTML = "Claim NFT";
@@ -220,8 +218,6 @@ function showModalNft(id, nftState) {
                                 document.querySelector('.modal-main-btn').style.display = 'none';
                                 contract.check_transfer_overdue_nft_to_creditor({token_id: id}).then(goToNFTsAndUpdate);
                             });
-                        } else {
-                            document.querySelector('.modal-main-btn').innerHTML = "xxx";
                         }
                     });
                     document.querySelector('.modal-main-btn').style.display = 'none';
@@ -234,8 +230,6 @@ function showModalNft(id, nftState) {
                             document.querySelector('.modal-main-btn').style.display = 'none';
                             contract.check_transfer_overdue_nft_to_creditor({token_id: id}).then(goToNFTsAndUpdate);
                         });
-                    } else {
-                        document.querySelector('.modal-main-btn').innerHTML = "xxx";
                     }
                 }
             } else {
@@ -247,7 +241,7 @@ function showModalNft(id, nftState) {
                     }
                 });
                 $('.modal-main-btn').off('click').click(function () {
-                    contract.repaid_loan({token_id: id}, GAS, deposit.toString()).then(updateUI);
+                    contract.repay_loan({token_id: id}, GAS, deposit.toString()).then(updateUI);
                 });
             }
         } else {
@@ -285,7 +279,7 @@ function showModalNft(id, nftState) {
                 const minutes = Number.parseInt(document.querySelector(".input-minutes").value);
                 const seconds = days * SEC_IN_DAY + hours * SEC_IN_HOUR + minutes * SEC_IN_MIN;
 
-                if (amount && seconds && apr) {
+                if (amount && seconds && apr && apr > 0 && seconds > 0) {
                     const idAndContract = id.split(':');
                     const params = [idAndContract[1], amount, apr, seconds, nft.extra, nft.type, nft.title, nft.url];
                     const msg = params.join("!#@");
@@ -324,8 +318,8 @@ function secondsToTime(secondsLeft) {
 
     const seconds = formatNumber(secondsLeft % 60);
     const minutes = formatNumber(Math.floor(secondsLeft / SEC_IN_MIN) % 60);
-    const hours = formatNumber(Math.floor(secondsLeft / SEC_IN_HOUR) % 60);
-    const days = Math.floor(secondsLeft / (SEC_IN_DAY)) % 60;
+    const hours = formatNumber(Math.floor(secondsLeft / SEC_IN_HOUR) % 24);
+    const days = Math.floor(secondsLeft / (SEC_IN_DAY));
     return [days, hours, minutes, seconds]
 }
 
