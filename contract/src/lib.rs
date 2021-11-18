@@ -1,19 +1,16 @@
 mod locked_token;
 mod cross_calls;
 
-use std::cmp::max;
-
 use near_sdk::borsh::{self, BorshDeserialize, BorshSerialize};
 use near_sdk::collections::{LookupMap, UnorderedMap, UnorderedSet};
 use near_sdk::json_types::ValidAccountId;
 use near_sdk::{
-    env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise, StorageUsage,
+    env, near_bindgen, AccountId, CryptoHash, PanicOnDefault, Promise,
 };
 
 use near_contract_standards::non_fungible_token::{
-    refund_deposit, hash_account_id, TokenId,
+    hash_account_id, TokenId,
 };
-use near_contract_standards::non_fungible_token::metadata::TokenMetadata;
 
 use crate::locked_token::*;
 use crate::cross_calls::*;
@@ -21,7 +18,6 @@ use crate::cross_calls::*;
 use std::str::FromStr;
 use std::time::Duration;
 use std::convert::TryFrom;
-use crate::locked_token::LockedTokenState::Locked;
 
 
 near_sdk::setup_alloc!();
@@ -58,7 +54,7 @@ const CONTRACT_NAME: &str = "contract.alevoro.testnet";
 impl Contract {
     #[init]
     pub fn new(owner_id: ValidAccountId) -> Self {
-        let mut this = Self {
+        let this = Self {
             owner_id: owner_id.into(),
             tokens_stored_per_owner: UnorderedMap::new(StorageKey::NFTsPerOwner.try_to_vec().unwrap()),
             nft_locker_by_token_id: LookupMap::new(StorageKey::LockerByTokenId.try_to_vec().unwrap()),
@@ -191,7 +187,7 @@ impl Contract {
     ) {
         let initial_storage_usage = env::storage_usage() as i128;
 
-        let mut locked_tokens_ids = self.get_tokens_stored_per_owner(init_owner);
+        let locked_tokens_ids = self.get_tokens_stored_per_owner(init_owner);
         let token_exists_and_valid = locked_tokens_ids
             .iter()
             .find(|x| x.to_string() == token_id);
@@ -275,7 +271,7 @@ impl Contract {
         env::log(format!("Seller: {}", token_owner_id).as_bytes());
         env::log(format!("TokeID: {}", token_id).as_bytes());
 
-        let mut owner_locked_tokens_ids = self.get_tokens_stored_per_owner(&&token_owner_id);
+        let owner_locked_tokens_ids = self.get_tokens_stored_per_owner(&&token_owner_id);
         let mut tokens_for_lent_money_ids = self.get_tokens_for_lent_money(&&lender_id);
 
         let token_exists_and_valid = owner_locked_tokens_ids

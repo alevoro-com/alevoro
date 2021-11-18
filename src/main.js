@@ -370,6 +370,31 @@ document.querySelector('.closeNFT').addEventListener("click", function () {
     }, 1)
 });
 
+let modalMint = document.getElementById("mintModal");
+
+document.querySelector('.mint-btn').addEventListener("click", function () {
+    modalMint.style.display = "block";
+});
+
+document.querySelector('.get-mint-url').addEventListener("click", function () {
+    closeMint();
+    window.open("https://testnet.mintbase.io/thing/_oDJUEmptoHoi5hKS0Zrs95d3qOY2tiiwLlF_jMZ3TQ:arti.mintspace2.testnet", '_blank').focus();
+});
+
+document.querySelector('.closeMint').addEventListener("click", function () {
+    closeMint();
+});
+
+function closeMint() {
+    modalMint.style.display = "none";
+
+    $("#mint-content-id").removeClass("modal-content");
+    setTimeout(function(){
+        $("#mint-content-id").addClass("modal-content");
+    },1 )
+}
+
+
 
 document.querySelector('.market-btn').addEventListener("click", function () {
     changeNavigatorState("Market");
