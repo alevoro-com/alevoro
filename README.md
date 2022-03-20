@@ -1,5 +1,3 @@
-## DEMO: [https://app.alevoro.com](https://app.alevoro.com)
-
 ## Alevoro - marketplace for collateralized NFT loans
 
 ### How to use NFT as collateral in Alevoro:
